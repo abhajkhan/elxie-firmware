@@ -116,12 +116,7 @@ enum WanderState
   WS_PAUSE
 };
 
-// ========================================
-// DEVICE
-// ========================================
-
-#define DEVICE_NAME "ELXIE"
-#define FIRMWARE_VERSION "3.0.0"
+#include "config/BoardConfig.h"
 
 // ========================================
 // BLE UUIDs
@@ -132,97 +127,15 @@ enum WanderState
 #define NUS_CHAR_TX_UUID "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
 // ========================================
-// PIN MAP
-// ========================================
-
-// Motor driver (TB6612FNG)
-#define PIN_STBY 14
-#define PIN_PWMA 18
-#define PIN_AIN1 19
-#define PIN_AIN2 20
-#define PIN_PWMB 21
-#define PIN_BIN1 47
-#define PIN_BIN2 48
-
-// Default motor PWM speed (0..255) for BLE "move" commands.
-const int DEFAULT_SPEED = 180;
-
-// Sonar (HC-SR04)
-#define PIN_TRIG 15
-#define PIN_ECHO 16
-
-// I2C bus
-#define PIN_SDA 8
-#define PIN_SCL 9
-
-// Mux (CD4067)
-#define PIN_MUX_S0 4
-#define PIN_MUX_S1 5
-#define PIN_MUX_S2 6
-#define PIN_MUX_S3 17
-#define PIN_MUX_SIG 1
-
-// Touch (TTP223)
-#define PIN_TOUCH 12
-
-// Battery percentage sense input (analog).
-// ADC reading 0..4095 is mapped to 0..100 percent.
-#define PIN_BATTERY 7
-
-// Buzzer
-#define PIN_BUZZER 13
-
-// External NeoPixel strip
-#define PIN_STRIP 10
-#define NUM_STRIP_PIXELS 30
-
-// Encoders
-#define PIN_ENC_LEFT 39
-#define PIN_ENC_RIGHT 40
-
-// ========================================
 // ESP-NOW REMOTE
 // ========================================
 
 // NOTE: confirm this matches the remote's ACTUAL printed MAC.
 uint8_t REMOTE_MAC[6] = {0x18, 0xfe, 0x34, 0xf5, 0xe8, 0x66};
 
-// ========================================
-// I2C DEVICE ADDRESSES
-// ========================================
-
-#define ADDR_MPU6050 0x68
-#define ADDR_QMC5883P 0x2C
-#define ADDR_OLED 0x3C
-
-#define OLED_WIDTH 128
-#define OLED_HEIGHT 64
-
 bool mpu6050Present = false;
 bool qmc5883Present = false;
 bool oledPresent = false;
-
-// ========================================
-// IR MUX CHANNELS  (8 total)
-// ========================================
-
-// Corner sensors used for obstacle telemetry (file 1) AND reused
-// as the ESP-NOW "side" obstacle sensors (same physical sensors).
-// C1 = corner-front-left  -> CH9
-// C2 = corner-front-right -> CH15
-// C3 = corner-rear-left   -> CH11
-// C4 = corner-rear-right  -> CH14
-#define MUX_CH_C1 9
-#define MUX_CH_C2 15
-#define MUX_CH_C3 11
-#define MUX_CH_C4 14
-const uint8_t CORNER_CH[4] = {MUX_CH_C1, MUX_CH_C2, MUX_CH_C3, MUX_CH_C4};
-
-// Bottom / drop sensors — new, ESP-NOW mode only (edge safety).
-// Not part of the BLE telemetry schema.
-const uint8_t BOTTOM_CH[4] = {10, 8, 12, 13}; // FL, FR, RL, RR
-
-#define IR_OBSTACLE_THRESHOLD 4000
 
 // ========================================
 // SHARED BUZZER GATE (tone()-based, non-blocking)
@@ -326,8 +239,6 @@ void playTone(int freq, int durationMs)
 
 bool buzzerBusy() { return (long)(millis() - buzzerFreeAt) < 0; }
 
-#define BUZZER_FREQ 2000 // generic chirp tone used by several ESP-NOW effects
-
 // OLED display object — declared here (ahead of its own section) because
 // drawBatteryOverlay(), below, needs to reference it, and unlike function
 // calls, Arduino does not auto-forward-declare global objects.
@@ -338,18 +249,6 @@ Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
 // ========================================
 
 Adafruit_NeoPixel strip(NUM_STRIP_PIXELS, PIN_STRIP, NEO_GRB + NEO_KHZ800);
-
-// Physical WS2812 region mapping supplied for the Elxie robot.
-// The RIGHT region wraps around the physical end of the 30-pixel strip.
-const uint8_t RIGHT_PIXELS[] = {6, 7, 8};
-const uint8_t FRONT_PIXELS[] = {27, 28};
-const uint8_t LEFT_PIXELS[] = {18, 19, 20};
-const uint8_t BACK_PIXELS[] = {11, 12};
-
-#define RIGHT_PIXEL_COUNT (sizeof(RIGHT_PIXELS) / sizeof(RIGHT_PIXELS[0]))
-#define FRONT_PIXEL_COUNT (sizeof(FRONT_PIXELS) / sizeof(FRONT_PIXELS[0]))
-#define LEFT_PIXEL_COUNT (sizeof(LEFT_PIXELS) / sizeof(LEFT_PIXELS[0]))
-#define BACK_PIXEL_COUNT (sizeof(BACK_PIXELS) / sizeof(BACK_PIXELS[0]))
 
 void setStripColor(uint8_t r, uint8_t g, uint8_t b)
 {
@@ -418,11 +317,6 @@ int readBatteryPercentage()
   int raw = analogRead(PIN_BATTERY);
   return constrain((raw * 100L) / 4095L, 0, 100);
 }
-
-#define BATT_WARN_PCT 35
-#define BATT_CLEAR_PCT 40
-#define BATT_SAMPLE_MS 2000UL
-#define BATT_ALERT_PERIOD_MS 60000UL // re-alert cadence while low
 
 int batteryPercent = 100;
 bool batteryLow = false;
