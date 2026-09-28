@@ -117,6 +117,10 @@ enum WanderState
 };
 
 #include "config/BoardConfig.h"
+#include "core/RobotTypes.h"
+#include "core/RobotState.h"
+#include "core/RobotCommand.h"
+#include "core/InputEvent.h"
 
 // ========================================
 // BLE UUIDs
