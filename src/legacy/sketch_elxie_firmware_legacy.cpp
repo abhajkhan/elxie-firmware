@@ -108,19 +108,19 @@ enum WanderState
   WS_PAUSE
 };
 
-#include "config/BoardConfig.h"
-#include "core/RobotTypes.h"
-#include "core/RobotState.h"
-#include "core/RobotCommand.h"
-#include "core/InputEvent.h"
-#include "hardware/MotorController.h"
-#include "hardware/SensorManager.h"
-#include "hardware/LedController.h"
-#include "hardware/DisplayController.h"
-#include "hardware/BuzzerController.h"
-#include "hardware/BatteryManager.h"
-#include "communication/BleProtocol.h"
-#include "communication/BleManager.h"
+#include "../config/BoardConfig.h"
+#include "../core/RobotTypes.h"
+#include "../core/RobotState.h"
+#include "../core/RobotCommand.h"
+#include "../core/InputEvent.h"
+#include "../hardware/MotorController.h"
+#include "../hardware/SensorManager.h"
+#include "../hardware/LedController.h"
+#include "../hardware/DisplayController.h"
+#include "../hardware/BuzzerController.h"
+#include "../hardware/BatteryManager.h"
+#include "../communication/BleProtocol.h"
+#include "../communication/BleManager.h"
 
 // ========================================
 // BLE UUIDs
@@ -2652,7 +2652,7 @@ uint8_t qmc5883ReadHeadingByte()
 // SETUP
 // ========================================
 
-void setup()
+void legacy_setup()
 {
   Serial.begin(115200);
   delay(1000);
@@ -2773,7 +2773,7 @@ void setup()
 // LOOP
 // ========================================
 
-void loop()
+void legacy_loop()
 {
   // Process complete newline-delimited JSON outside the BLE callback.
   if (havePendingLine)
