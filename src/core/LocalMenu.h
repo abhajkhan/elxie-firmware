@@ -39,6 +39,7 @@ private:
     uint8_t selectedIndex = 0;
     uint8_t selectedGameIdx = 0;
     uint8_t selectedLevel = 1;
+    unsigned long lastBtn2ClickMs = 0;
 };
 
 #endif // LOCAL_MENU_H

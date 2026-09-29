@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <Arduino.h>
 #include "../core/InputEvent.h"
 #include "../core/RobotTypes.h"
 

@@ -72,8 +72,8 @@ void RobotController::onOwnershipChanged(InputSource previousOwner, InputSource 
     }
     else if (newOwner == InputSource::ESP_NOW)
     {
-        // ESP-NOW connection alone transitions to local remote control context
-        transitionToState(TopLevelState::RC);
+        // ESP-NOW connection goes to IDLE so the menu takes over
+        transitionToState(TopLevelState::IDLE);
     }
 }
 
@@ -128,6 +128,21 @@ void RobotController::handleCommand(const RobotCommand &cmd)
         }
         break;
 
+    case CommandType::START_RC:
+        if (currentState.activeOwner == cmd.source)
+        {
+            transitionToState(TopLevelState::RC);
+        }
+        break;
+
+    case CommandType::EXIT_RC:
+        if (currentState.mode == TopLevelState::RC)
+        {
+            stopAllMotion();
+            transitionToState(TopLevelState::IDLE);
+        }
+        break;
+
     case CommandType::START_GAME:
         if (currentState.activeOwner == cmd.source)
         {
@@ -164,6 +179,30 @@ void RobotController::handleInputEvent(const InputEvent &event)
 
             currentState.leftMotorSpeed = left;
             currentState.rightMotorSpeed = right;
+        }
+    }
+    else if (event.type == InputEventType::ACTION_SELECT)
+    {
+        if (currentState.mode == TopLevelState::RC && pBuzzer)
+        {
+            // Horn: Play 1000Hz tone for 1000ms
+            pBuzzer->playTone(1000, 1000);
+        }
+    }
+    else if (event.type == InputEventType::BUTTON)
+    {
+        if (currentState.mode == TopLevelState::RC && pLeds)
+        {
+            if (event.data.button.buttonId == 1 && event.data.button.pressed)
+            {
+                static uint8_t colorState = 0;
+                if (colorState == 0) pLeds->setStripColor(255, 0, 0);      // Red
+                else if (colorState == 1) pLeds->setStripColor(0, 255, 0); // Green
+                else if (colorState == 2) pLeds->setStripColor(0, 0, 255); // Blue
+                else pLeds->setStripColor(0, 0, 0);                        // Off
+                
+                colorState = (colorState + 1) % 4;
+            }
         }
     }
 }
