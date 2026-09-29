@@ -100,14 +100,6 @@ struct GameColor
   uint8_t b;
 };
 
-enum StripRegion
-{
-  REGION_FRONT,
-  REGION_BACK,
-  REGION_LEFT,
-  REGION_RIGHT
-};
-
 enum WanderState
 {
   WS_CRUISE,
@@ -121,6 +113,12 @@ enum WanderState
 #include "core/RobotState.h"
 #include "core/RobotCommand.h"
 #include "core/InputEvent.h"
+#include "hardware/MotorController.h"
+#include "hardware/SensorManager.h"
+#include "hardware/LedController.h"
+#include "hardware/DisplayController.h"
+#include "hardware/BuzzerController.h"
+#include "hardware/BatteryManager.h"
 
 // ========================================
 // BLE UUIDs

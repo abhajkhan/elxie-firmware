@@ -49,4 +49,12 @@ enum class MenuAction : uint8_t
     BACK
 };
 
+enum StripRegion
+{
+    REGION_FRONT,
+    REGION_BACK,
+    REGION_LEFT,
+    REGION_RIGHT
+};
+
 #endif // ROBOT_TYPES_H
