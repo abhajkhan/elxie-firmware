@@ -121,6 +121,8 @@ enum WanderState
 #include "../hardware/BatteryManager.h"
 #include "../communication/BleProtocol.h"
 #include "../communication/BleManager.h"
+#include "../communication/EspNowProtocol.h"
+#include "../communication/EspNowManager.h"
 
 // ========================================
 // BLE UUIDs

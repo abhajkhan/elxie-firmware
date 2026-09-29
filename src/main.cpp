@@ -14,6 +14,8 @@
 
 #include "communication/BleProtocol.h"
 #include "communication/BleManager.h"
+#include "communication/EspNowProtocol.h"
+#include "communication/EspNowManager.h"
 
 // Hardware Abstraction Instances
 static MotorController motorController;
@@ -25,6 +27,7 @@ static BatteryManager batteryManager;
 
 // Communication Instances
 static BleManager bleManager;
+static EspNowManager &espNowManager = EspNowManager::getInstance();
 
 // Declarations of legacy functions still active during Phase 5A.5 transition
 // extern void legacy_setup();
