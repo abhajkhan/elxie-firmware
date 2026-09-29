@@ -94,13 +94,32 @@ void loop()
     JsonDocument rawDoc;
     if (bleManager.getPendingCommand(bleCmd, bleEvent, rawDoc))
     {
-        if (bleCmd.type != CommandType::NONE)
+        const char *type = rawDoc["type"];
+        if (type && strcmp(type, "hello") == 0)
         {
-            controllerManager.processCommand(bleCmd);
+            const char *msgId = rawDoc["id"] | "hello-001";
+            uint8_t protoVer = rawDoc["payload"]["protocolVersion"] | rawDoc["v"] | 1;
+            bool accepted = (protoVer == 1);
+            String ackMsg = BleProtocol::serializeHelloAck(msgId, accepted, 1);
+            Serial.printf("[Event] Handshake 'hello' received. Sending ack (accepted=%s)\n", accepted ? "true" : "false");
+            bleManager.sendTx(ackMsg);
+            if (accepted)
+            {
+                bleManager.setClientReady(true);
+            }
         }
-        if (bleEvent.type != InputEventType::NONE)
+        else
         {
-            controllerManager.processInputEvent(bleEvent);
+            if (bleCmd.type != CommandType::NONE)
+            {
+                Serial.printf("[Event] Process BLE Command Type: %d\n", (int)bleCmd.type);
+                controllerManager.processCommand(bleCmd);
+            }
+            if (bleEvent.type != InputEventType::NONE)
+            {
+                Serial.printf("[Event] Process BLE Input Event Type: %d\n", (int)bleEvent.type);
+                controllerManager.processInputEvent(bleEvent);
+            }
         }
     }
 

@@ -7,6 +7,7 @@
 void BleManager::begin(const char *deviceName)
 {
     BLEDevice::init(deviceName);
+    BLEDevice::setMTU(247);
     pServer = BLEDevice::createServer();
     pServer->setCallbacks(this);
 
@@ -31,7 +32,7 @@ void BleManager::begin(const char *deviceName)
     pAdvertising->setMinPreferred(0x12);
     BLEDevice::startAdvertising();
 
-    Serial.println("BLE Nordic UART Service started, advertising...");
+    Serial.println("[BLE] Nordic UART Service started & advertising (MTU 247 requested)");
 }
 
 void BleManager::onConnect(BLEServer *server)
@@ -69,6 +70,8 @@ void BleManager::onWrite(BLECharacteristic *characteristic)
 
             pendingLine = rxLineBuffer;
             havePendingLine = true;
+            Serial.print("[BLE RX Line]: ");
+            Serial.println(pendingLine);
             rxLineBuffer = "";
         }
         else
@@ -102,5 +105,7 @@ void BleManager::sendTx(const String &data)
         String msg = data + "\n";
         pTxCharacteristic->setValue((uint8_t *)msg.c_str(), msg.length());
         pTxCharacteristic->notify();
+        Serial.print("[BLE TX Sent]: ");
+        Serial.print(msg);
     }
 }

@@ -161,6 +161,26 @@ String BleProtocol::serializeState(const char *stateStr, const char *ownerStr, b
     return out;
 }
 
+String BleProtocol::serializeHelloAck(const char *msgId, bool accepted, uint8_t protocolVersion)
+{
+    JsonDocument doc;
+    doc["v"] = 1;
+    doc["type"] = "hello_ack";
+    if (msgId && strlen(msgId) > 0)
+        doc["id"] = msgId;
+    else
+        doc["id"] = "hello-ack";
+
+    JsonObject payload = doc["payload"].to<JsonObject>();
+    payload["device"] = "elxie-robot";
+    payload["protocolVersion"] = protocolVersion;
+    payload["accepted"] = accepted;
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
 String BleProtocol::serializeResponse(const char *command, bool success, const char *message)
 {
     JsonDocument doc;

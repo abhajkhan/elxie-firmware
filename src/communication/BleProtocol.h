@@ -14,6 +14,7 @@ public:
     
     static String serializeDeviceInfo(const char *deviceName, const char *firmwareVersion, bool bleConnected, bool remoteConnected);
     static String serializeState(const char *stateStr, const char *ownerStr, bool bleConnected, bool remoteConnected);
+    static String serializeHelloAck(const char *msgId, bool accepted, uint8_t protocolVersion = 1);
     static String serializeResponse(const char *command, bool success, const char *message = nullptr);
     static String serializeError(const char *message);
 
