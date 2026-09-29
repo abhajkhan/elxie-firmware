@@ -119,6 +119,8 @@ enum WanderState
 #include "hardware/DisplayController.h"
 #include "hardware/BuzzerController.h"
 #include "hardware/BatteryManager.h"
+#include "communication/BleProtocol.h"
+#include "communication/BleManager.h"
 
 // ========================================
 // BLE UUIDs
