@@ -103,4 +103,9 @@ constexpr uint8_t BACK_PIXELS[] = {11, 12};
 #define PIN_ENC_LEFT 39
 #define PIN_ENC_RIGHT 40
 
+// ========================================
+// ESP-NOW CONFIGURATION
+// ========================================
+constexpr uint8_t REMOTE_MAC[6] = {0x18, 0xfe, 0x34, 0xf5, 0xe8, 0x66};
+
 #endif // BOARD_CONFIG_H

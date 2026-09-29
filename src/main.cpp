@@ -4,6 +4,8 @@
 #include "core/RobotState.h"
 #include "core/RobotCommand.h"
 #include "core/InputEvent.h"
+#include "core/RobotController.h"
+#include "core/ControllerManager.h"
 
 #include "hardware/MotorController.h"
 #include "hardware/SensorManager.h"
@@ -25,13 +27,13 @@ static DisplayController displayController;
 static BuzzerController buzzerController;
 static BatteryManager batteryManager;
 
+// Core Logic Instances
+static RobotController robotController;
+static ControllerManager controllerManager;
+
 // Communication Instances
 static BleManager bleManager;
 static EspNowManager &espNowManager = EspNowManager::getInstance();
-
-// Declarations of legacy functions still active during Phase 5A.5 transition
-// extern void legacy_setup();
-// extern void legacy_loop();
 
 void setup()
 {
@@ -39,7 +41,7 @@ void setup()
     delay(1000);
 
     Serial.println();
-    Serial.println("Starting ELXIE Firmware (Modular Architecture Entry Point)...");
+    Serial.println("Starting ELXIE Firmware (Centralized Controller Ownership)...");
 
     // Initialize HAL Modules
     motorController.begin();
@@ -49,23 +51,54 @@ void setup()
     buzzerController.begin();
     batteryManager.begin();
 
-    // Initialize BLE Communication Module (Phase 5A)
-    bleManager.begin(DEVICE_NAME);
+    // Initialize Core Logic Modules
+    robotController.begin(&motorController, &ledController, &displayController, &buzzerController);
+    controllerManager.begin(&robotController);
 
-    // Invoke legacy setup for remaining unmigrated services (ESP-NOW, games, etc.)
-    // legacy_setup();
+    // Initialize Communication Modules
+    bleManager.begin(DEVICE_NAME);
+    espNowManager.begin(REMOTE_MAC);
 }
 
 void loop()
 {
-    // Update HAL services
+    // 1. Update HAL services
     sensorManager.update();
     batteryManager.service(buzzerController);
     displayController.updateIdleDisplay(batteryManager.isLow());
 
-    // Update Communication service
+    // 2. Update Communication services
     bleManager.update();
+    espNowManager.update();
 
-    // Service remaining legacy application loop
-    // legacy_loop();
+    // 3. Centralized Controller Ownership arbitration (SSoT Section 2.1 Rules)
+    bool bleConnected = bleManager.isConnected();
+    bool espNowConnected = espNowManager.isConnected();
+    controllerManager.update(bleConnected, espNowConnected);
+
+    // 4. Process incoming BLE messages through ControllerManager
+    RobotCommand bleCmd;
+    InputEvent bleEvent;
+    JsonDocument rawDoc;
+    if (bleManager.getPendingCommand(bleCmd, bleEvent, rawDoc))
+    {
+        if (bleCmd.type != CommandType::NONE)
+        {
+            controllerManager.processCommand(bleCmd);
+        }
+        if (bleEvent.type != InputEventType::NONE)
+        {
+            controllerManager.processInputEvent(bleEvent);
+        }
+    }
+
+    // 5. Process incoming ESP-NOW messages through ControllerManager
+    InputEvent espNowEvent;
+    if (espNowManager.getLatestInputEvent(espNowEvent))
+    {
+        controllerManager.processInputEvent(espNowEvent);
+    }
+
+    // 6. Update Robot Controller state machine
+    robotController.update();
 }
