@@ -1,12 +1,14 @@
 #include "RobotController.h"
+#include "LocalMenu.h"
 #include <Arduino.h>
 
-void RobotController::begin(MotorController *motors, LedController *leds, DisplayController *display, BuzzerController *buzzer)
+void RobotController::begin(MotorController *motors, LedController *leds, DisplayController *display, BuzzerController *buzzer, LocalMenu *menu)
 {
     pMotors = motors;
     pLeds = leds;
     pDisplay = display;
     pBuzzer = buzzer;
+    pLocalMenu = menu;
 
     currentState.mode = TopLevelState::IDLE;
     currentState.activeOwner = InputSource::NONE;
@@ -51,6 +53,12 @@ void RobotController::onOwnershipChanged(InputSource previousOwner, InputSource 
         pBuzzer->stop();
 
     currentState.activeOwner = newOwner;
+
+    // If BLE connects at any point, reset/exit local OLED menu
+    if (newOwner == InputSource::BLE && pLocalMenu)
+    {
+        pLocalMenu->reset();
+    }
 
     // 2. Establish top-level mode based on new owner
     if (newOwner == InputSource::NONE)

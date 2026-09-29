@@ -10,10 +10,12 @@
 #include "../hardware/DisplayController.h"
 #include "../hardware/BuzzerController.h"
 
+class LocalMenu; // Forward declaration
+
 class RobotController
 {
 public:
-    void begin(MotorController *motors, LedController *leds, DisplayController *display, BuzzerController *buzzer);
+    void begin(MotorController *motors, LedController *leds, DisplayController *display, BuzzerController *buzzer, LocalMenu *menu = nullptr);
     void update();
 
     void onOwnershipChanged(InputSource previousOwner, InputSource newOwner);
@@ -30,6 +32,7 @@ private:
     LedController *pLeds = nullptr;
     DisplayController *pDisplay = nullptr;
     BuzzerController *pBuzzer = nullptr;
+    LocalMenu *pLocalMenu = nullptr;
 
     RobotState currentState;
 };

@@ -136,9 +136,6 @@ enum WanderState
 // ESP-NOW REMOTE
 // ========================================
 
-// NOTE: confirm this matches the remote's ACTUAL printed MAC.
-uint8_t REMOTE_MAC[6] = {0x18, 0xfe, 0x34, 0xf5, 0xe8, 0x66};
-
 bool mpu6050Present = false;
 bool qmc5883Present = false;
 bool oledPresent = false;

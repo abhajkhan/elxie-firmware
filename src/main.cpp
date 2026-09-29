@@ -6,6 +6,7 @@
 #include "core/InputEvent.h"
 #include "core/RobotController.h"
 #include "core/ControllerManager.h"
+#include "core/LocalMenu.h"
 
 #include "hardware/MotorController.h"
 #include "hardware/SensorManager.h"
@@ -30,6 +31,7 @@ static BatteryManager batteryManager;
 // Core Logic Instances
 static RobotController robotController;
 static ControllerManager controllerManager;
+static LocalMenu localMenu;
 
 // Communication Instances
 static BleManager bleManager;
@@ -41,7 +43,7 @@ void setup()
     delay(1000);
 
     Serial.println();
-    Serial.println("Starting ELXIE Firmware (Centralized Controller Ownership)...");
+    Serial.println("Starting ELXIE Firmware (Local OLED Menu & Control Arbitration)...");
 
     // Initialize HAL Modules
     motorController.begin();
@@ -52,7 +54,8 @@ void setup()
     batteryManager.begin();
 
     // Initialize Core Logic Modules
-    robotController.begin(&motorController, &ledController, &displayController, &buzzerController);
+    localMenu.begin(&displayController, &robotController);
+    robotController.begin(&motorController, &ledController, &displayController, &buzzerController, &localMenu);
     controllerManager.begin(&robotController);
 
     // Initialize Communication Modules
@@ -65,18 +68,27 @@ void loop()
     // 1. Update HAL services
     sensorManager.update();
     batteryManager.service(buzzerController);
-    displayController.updateIdleDisplay(batteryManager.isLow());
 
     // 2. Update Communication services
     bleManager.update();
     espNowManager.update();
 
-    // 3. Centralized Controller Ownership arbitration (SSoT Section 2.1 Rules)
+    // 3. Centralized Controller Ownership arbitration
     bool bleConnected = bleManager.isConnected();
     bool espNowConnected = espNowManager.isConnected();
     controllerManager.update(bleConnected, espNowConnected);
 
-    // 4. Process incoming BLE messages through ControllerManager
+    // 4. Update Local OLED Menu if Remote owns control
+    if (!bleConnected && espNowConnected)
+    {
+        localMenu.update(batteryManager.isLow());
+    }
+    else
+    {
+        displayController.updateIdleDisplay(batteryManager.isLow());
+    }
+
+    // 5. Process incoming BLE messages
     RobotCommand bleCmd;
     InputEvent bleEvent;
     JsonDocument rawDoc;
@@ -92,13 +104,17 @@ void loop()
         }
     }
 
-    // 5. Process incoming ESP-NOW messages through ControllerManager
+    // 6. Process incoming ESP-NOW messages
     InputEvent espNowEvent;
     if (espNowManager.getLatestInputEvent(espNowEvent))
     {
+        if (controllerManager.getActiveOwner() == InputSource::ESP_NOW)
+        {
+            localMenu.handleInput(espNowEvent);
+        }
         controllerManager.processInputEvent(espNowEvent);
     }
 
-    // 6. Update Robot Controller state machine
+    // 7. Update Robot Controller state machine
     robotController.update();
 }
