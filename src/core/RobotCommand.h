@@ -13,7 +13,9 @@ enum class CommandType : uint8_t
     SET_LED_REGION,
     PLAY_BUZZER_TONE,
     START_GAME,
-    ABORT_GAME
+    ABORT_GAME,
+    START_RC,
+    EXIT_RC
 };
 
 struct RobotCommand

@@ -124,7 +124,7 @@ void LocalMenu::selectCurrentItem()
             if (pRobotController)
             {
                 RobotCommand cmd;
-                cmd.type = CommandType::NONE;
+                cmd.type = CommandType::START_RC;
                 cmd.source = InputSource::ESP_NOW;
                 pRobotController->handleCommand(cmd);
             }
@@ -165,6 +165,13 @@ void LocalMenu::goBack()
     case MenuScreen::FREE_RIDE_ACTIVE:
         currentScreen = MenuScreen::MAIN_MENU;
         selectedIndex = 0;
+        if (pRobotController)
+        {
+            RobotCommand cmd;
+            cmd.type = CommandType::EXIT_RC;
+            cmd.source = InputSource::ESP_NOW;
+            pRobotController->handleCommand(cmd);
+        }
         break;
 
     case MenuScreen::LEVEL_SELECT:

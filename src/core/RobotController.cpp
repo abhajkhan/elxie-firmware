@@ -72,8 +72,8 @@ void RobotController::onOwnershipChanged(InputSource previousOwner, InputSource 
     }
     else if (newOwner == InputSource::ESP_NOW)
     {
-        // ESP-NOW connection alone transitions to local remote control context
-        transitionToState(TopLevelState::RC);
+        // ESP-NOW connection goes to IDLE so the menu takes over
+        transitionToState(TopLevelState::IDLE);
     }
 }
 
@@ -125,6 +125,21 @@ void RobotController::handleCommand(const RobotCommand &cmd)
         if (pBuzzer)
         {
             pBuzzer->playTone(cmd.buzzer.frequency, cmd.buzzer.durationMs);
+        }
+        break;
+
+    case CommandType::START_RC:
+        if (currentState.activeOwner == cmd.source)
+        {
+            transitionToState(TopLevelState::RC);
+        }
+        break;
+
+    case CommandType::EXIT_RC:
+        if (currentState.mode == TopLevelState::RC)
+        {
+            stopAllMotion();
+            transitionToState(TopLevelState::IDLE);
         }
         break;
 
