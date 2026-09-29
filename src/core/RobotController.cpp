@@ -181,4 +181,28 @@ void RobotController::handleInputEvent(const InputEvent &event)
             currentState.rightMotorSpeed = right;
         }
     }
+    else if (event.type == InputEventType::ACTION_SELECT)
+    {
+        if (currentState.mode == TopLevelState::RC && pBuzzer)
+        {
+            // Horn: Play 1000Hz tone for 1000ms
+            pBuzzer->playTone(1000, 1000);
+        }
+    }
+    else if (event.type == InputEventType::BUTTON)
+    {
+        if (currentState.mode == TopLevelState::RC && pLeds)
+        {
+            if (event.data.button.buttonId == 1 && event.data.button.pressed)
+            {
+                static uint8_t colorState = 0;
+                if (colorState == 0) pLeds->setStripColor(255, 0, 0);      // Red
+                else if (colorState == 1) pLeds->setStripColor(0, 255, 0); // Green
+                else if (colorState == 2) pLeds->setStripColor(0, 0, 255); // Blue
+                else pLeds->setStripColor(0, 0, 0);                        // Off
+                
+                colorState = (colorState + 1) % 4;
+            }
+        }
+    }
 }

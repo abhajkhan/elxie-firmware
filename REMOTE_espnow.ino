@@ -29,8 +29,8 @@ const uint8_t MUX_S2 = D7;
 const uint8_t MUX_COM = A0;
 
 // ---- Mux channel assignments ----
-const uint8_t CH_X = 5;
-const uint8_t CH_Y = 7;
+const uint8_t CH_X = 7;
+const uint8_t CH_Y = 5;
 const uint8_t CH_BATT = 6;
 
 // ---- Direct digital inputs ----
@@ -209,15 +209,15 @@ void loop() {
 
   // ---- local haptics on press (kept from original) ----
   if (btn1 && !prevBtn1) {
-    Serial.println("[LOG] BTN1 (Left Button) Clicked -> Sending BACK command");
+    Serial.println("[LOG] BTN1 (Front Button) Clicked -> Sending BUTTON_1 (LED Toggle)");
     startHapticShort();
   }
   if (btn2 && !prevBtn2) {
-    Serial.println("[LOG] BTN2 (Right Button) Clicked -> Sending BACK command");
+    Serial.println("[LOG] BTN2 (Bottom Button) Clicked -> Sending BACK command");
     startHapticShort();
   }
   if (sw && !prevSw) {
-    Serial.println("[LOG] SW (Joystick) Clicked -> Sending ACTION_SELECT command");
+    Serial.println("[LOG] SW (Joystick) Clicked -> Sending ACTION_SELECT (Horn)");
     startHapticSine();
   }
   prevBtn1 = btn1;

@@ -28,7 +28,7 @@ InputEvent EspNowProtocol::normalizeLegacyInput(const LegacyRemoteCommandPacket 
     InputEvent event;
     event.source = InputSource::ESP_NOW;
 
-    // Detect rising edge on switch (for SELECT)
+    // Detect rising edge on switch (for SELECT / Horn)
     if (packet.sw && !lastSw) {
         event.type = InputEventType::ACTION_SELECT;
         lastSw = packet.sw;
@@ -36,8 +36,18 @@ InputEvent EspNowProtocol::normalizeLegacyInput(const LegacyRemoteCommandPacket 
         lastBtn2 = packet.btn2;
         return event;
     }
-    // Detect rising edge on btn1 or btn2 (for BACK)
-    if ((packet.btn1 && !lastBtn1) || (packet.btn2 && !lastBtn2)) {
+    // Detect rising edge on btn1 (Front Button -> LED toggle)
+    if (packet.btn1 && !lastBtn1) {
+        event.type = InputEventType::BUTTON;
+        event.data.button.buttonId = 1;
+        event.data.button.pressed = true;
+        lastSw = packet.sw;
+        lastBtn1 = packet.btn1;
+        lastBtn2 = packet.btn2;
+        return event;
+    }
+    // Detect rising edge on btn2 (Bottom Button -> BACK)
+    if (packet.btn2 && !lastBtn2) {
         event.type = InputEventType::BACK;
         lastSw = packet.sw;
         lastBtn1 = packet.btn1;
