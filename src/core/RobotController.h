@@ -9,14 +9,16 @@
 #include "../hardware/LedController.h"
 #include "../hardware/DisplayController.h"
 #include "../hardware/BuzzerController.h"
+#include "../hardware/SensorManager.h"
+#include "../games/GameManager.h"
 
 class LocalMenu; // Forward declaration
 
 class RobotController
 {
 public:
-    void begin(MotorController *motors, LedController *leds, DisplayController *display, BuzzerController *buzzer, LocalMenu *menu = nullptr);
-    void update();
+    void begin(MotorController *motors, LedController *leds, DisplayController *display, BuzzerController *buzzer, LocalMenu *menu = nullptr, GameManager *gameManager = nullptr);
+    void update(const SensorSnapshot &sensors = SensorSnapshot{});
 
     void onOwnershipChanged(InputSource previousOwner, InputSource newOwner);
     void handleCommand(const RobotCommand &cmd);
@@ -33,6 +35,7 @@ private:
     DisplayController *pDisplay = nullptr;
     BuzzerController *pBuzzer = nullptr;
     LocalMenu *pLocalMenu = nullptr;
+    GameManager *pGameManager = nullptr;
 
     RobotState currentState;
 };

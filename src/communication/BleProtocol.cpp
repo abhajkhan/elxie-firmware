@@ -135,14 +135,37 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
     return true; // Valid JSON parsed even if command is unmapped/informational
 }
 
-String BleProtocol::serializeDeviceInfo(const char *deviceName, const char *firmwareVersion, bool bleConnected, bool remoteConnected)
+String BleProtocol::serializeDeviceInfo(const char *msgId, const char *macAddress, const char *deviceName, const char *firmwareVersion, bool bleConnected, bool remoteConnected, bool oledPresent, bool mpuPresent)
 {
     JsonDocument doc;
+    doc["v"] = 1;
     doc["type"] = "device_info";
-    doc["device"] = deviceName;
-    doc["version"] = firmwareVersion;
-    doc["ble_connected"] = bleConnected;
-    doc["esp_now_connected"] = remoteConnected;
+    if (msgId && strlen(msgId) > 0)
+    {
+        doc["id"] = msgId;
+    }
+
+    JsonObject payload = doc["payload"].to<JsonObject>();
+    payload["deviceId"] = macAddress ? macAddress : "7C4FAD214341";
+    payload["name"] = deviceName ? deviceName : "elxie-robot";
+    payload["model"] = "ESP32-S3 N16R8";
+    payload["firmware"] = firmwareVersion ? firmwareVersion : "1.0.0";
+    payload["protocolVersion"] = 1;
+
+    JsonObject caps = payload["capabilities"].to<JsonObject>();
+    caps["ble"] = bleConnected;
+    caps["espNow"] = remoteConnected;
+    caps["oled"] = oledPresent;
+    caps["led"] = true;
+    caps["sensors"] = mpuPresent;
+
+    JsonArray games = caps["games"].to<JsonArray>();
+    games.add("color_quest");
+    games.add("echo_memory");
+    games.add("reflex_arc");
+    games.add("driving_pro");
+    games.add("inverted_drive");
+
     String out;
     serializeJson(doc, out);
     return out;
@@ -176,6 +199,18 @@ String BleProtocol::serializeHelloAck(const char *msgId, bool accepted, uint8_t 
     payload["protocolVersion"] = protocolVersion;
     payload["accepted"] = accepted;
 
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
+String BleProtocol::serializePong(const char *msgId)
+{
+    JsonDocument doc;
+    doc["v"] = 1;
+    doc["type"] = "pong";
+    if (msgId && strlen(msgId) > 0)
+        doc["id"] = msgId;
     String out;
     serializeJson(doc, out);
     return out;

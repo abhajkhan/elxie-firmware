@@ -2,20 +2,21 @@
 #include "LocalMenu.h"
 #include <Arduino.h>
 
-void RobotController::begin(MotorController *motors, LedController *leds, DisplayController *display, BuzzerController *buzzer, LocalMenu *menu)
+void RobotController::begin(MotorController *motors, LedController *leds, DisplayController *display, BuzzerController *buzzer, LocalMenu *menu, GameManager *gameManager)
 {
     pMotors = motors;
     pLeds = leds;
     pDisplay = display;
     pBuzzer = buzzer;
     pLocalMenu = menu;
+    pGameManager = gameManager;
 
     currentState.mode = TopLevelState::IDLE;
     currentState.activeOwner = InputSource::NONE;
     currentState.currentGame = GameId::NONE;
 }
 
-void RobotController::update()
+void RobotController::update(const SensorSnapshot &sensors)
 {
     // State machine tick
     switch (currentState.mode)
@@ -27,7 +28,10 @@ void RobotController::update()
         // RC active
         break;
     case TopLevelState::GAME:
-        // Game engine updates when integrated in Phase 7
+        if (pGameManager)
+        {
+            pGameManager->update(sensors);
+        }
         break;
     }
 }
@@ -51,6 +55,8 @@ void RobotController::onOwnershipChanged(InputSource previousOwner, InputSource 
         pLeds->clearStripBuffer();
     if (pBuzzer)
         pBuzzer->stop();
+    if (pGameManager && currentState.mode == TopLevelState::GAME)
+        pGameManager->abortGame();
 
     currentState.activeOwner = newOwner;
 
@@ -83,6 +89,11 @@ void RobotController::transitionToState(TopLevelState newState)
         return;
 
     Serial.printf("[RobotController] State transition: %d -> %d\n", (int)currentState.mode, (int)newState);
+    if (currentState.mode == TopLevelState::GAME && pGameManager)
+    {
+        pGameManager->abortGame();
+    }
+
     currentState.mode = newState;
 
     if (newState == TopLevelState::IDLE)
@@ -148,12 +159,20 @@ void RobotController::handleCommand(const RobotCommand &cmd)
         {
             transitionToState(TopLevelState::GAME);
             currentState.currentGame = cmd.game.gameId;
+            if (pGameManager)
+            {
+                pGameManager->startGame(cmd.game.gameId, cmd.game.level);
+            }
         }
         break;
 
     case CommandType::ABORT_GAME:
         if (currentState.mode == TopLevelState::GAME)
         {
+            if (pGameManager)
+            {
+                pGameManager->abortGame();
+            }
             stopAllMotion();
             transitionToState(TopLevelState::IDLE);
         }
@@ -166,6 +185,12 @@ void RobotController::handleCommand(const RobotCommand &cmd)
 
 void RobotController::handleInputEvent(const InputEvent &event)
 {
+    if (currentState.mode == TopLevelState::GAME && pGameManager)
+    {
+        pGameManager->handleInput(event);
+        return;
+    }
+
     if (event.type == InputEventType::JOYSTICK)
     {
         if (currentState.mode == TopLevelState::RC && pMotors)

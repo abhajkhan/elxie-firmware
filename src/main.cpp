@@ -7,6 +7,7 @@
 #include "core/RobotController.h"
 #include "core/ControllerManager.h"
 #include "core/LocalMenu.h"
+#include "games/GameManager.h"
 
 #include "hardware/MotorController.h"
 #include "hardware/SensorManager.h"
@@ -32,6 +33,7 @@ static BatteryManager batteryManager;
 static RobotController robotController;
 static ControllerManager controllerManager;
 static LocalMenu localMenu;
+static GameManager gameManager;
 
 // Communication Instances
 static BleManager bleManager;
@@ -54,8 +56,9 @@ void setup()
     batteryManager.begin();
 
     // Initialize Core Logic Modules
+    gameManager.begin(&displayController, &ledController, &buzzerController, &bleManager);
     localMenu.begin(&displayController, &robotController);
-    robotController.begin(&motorController, &ledController, &displayController, &buzzerController, &localMenu);
+    robotController.begin(&motorController, &ledController, &displayController, &buzzerController, &localMenu, &gameManager);
     controllerManager.begin(&robotController);
 
     // Initialize Communication Modules
@@ -101,12 +104,37 @@ void loop()
             uint8_t protoVer = rawDoc["payload"]["protocolVersion"] | rawDoc["v"] | 1;
             bool accepted = (protoVer == 1);
             String ackMsg = BleProtocol::serializeHelloAck(msgId, accepted, 1);
-            Serial.printf("[Event] Handshake 'hello' received. Sending ack (accepted=%s)\n", accepted ? "true" : "false");
+            Serial.printf("[Event] Handshake 'hello' received (id: %s). Sending ack (accepted=%s)\n", msgId, accepted ? "true" : "false");
             bleManager.sendTx(ackMsg);
             if (accepted)
             {
                 bleManager.setClientReady(true);
             }
+        }
+        else if (type && strcmp(type, "device_info_request") == 0)
+        {
+            const char *msgId = rawDoc["id"] | "";
+            String macAddress = BLEDevice::getAddress().toString().c_str();
+            macAddress.toUpperCase();
+            macAddress.replace(":", "");
+            String devInfoMsg = BleProtocol::serializeDeviceInfo(
+                msgId,
+                macAddress.c_str(),
+                DEVICE_NAME,
+                FIRMWARE_VERSION,
+                bleConnected,
+                espNowConnected,
+                sensorManager.isOledPresent(),
+                sensorManager.isMpu6050Present()
+            );
+            Serial.printf("[Event] 'device_info_request' received (id: %s). Sending device_info response.\n", msgId);
+            bleManager.sendTx(devInfoMsg);
+        }
+        else if (type && strcmp(type, "ping") == 0)
+        {
+            const char *msgId = rawDoc["id"] | "";
+            String pongMsg = BleProtocol::serializePong(msgId);
+            bleManager.sendTx(pongMsg);
         }
         else
         {
@@ -135,5 +163,5 @@ void loop()
     }
 
     // 7. Update Robot Controller state machine
-    robotController.update();
+    robotController.update(sensorManager.getSnapshot());
 }

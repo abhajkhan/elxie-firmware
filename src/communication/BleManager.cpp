@@ -100,12 +100,26 @@ bool BleManager::getPendingCommand(RobotCommand &cmdOut, InputEvent &eventOut, J
 
 void BleManager::sendTx(const String &data)
 {
-    if (deviceConnected && pTxCharacteristic)
+    if (!deviceConnected || pTxCharacteristic == nullptr)
+        return;
+
+    String payload = data;
+    if (!payload.endsWith("\n"))
     {
-        String msg = data + "\n";
-        pTxCharacteristic->setValue((uint8_t *)msg.c_str(), msg.length());
-        pTxCharacteristic->notify();
-        Serial.print("[BLE TX Sent]: ");
-        Serial.print(msg);
+        payload += "\n";
     }
+
+    const size_t CHUNK_SIZE = 150;
+    const uint32_t CHUNK_DELAY_MS = 15;
+
+    for (size_t offset = 0; offset < payload.length(); offset += CHUNK_SIZE)
+    {
+        size_t length = min(CHUNK_SIZE, payload.length() - offset);
+        pTxCharacteristic->setValue((uint8_t *)(payload.c_str() + offset), length);
+        pTxCharacteristic->notify();
+        delay(CHUNK_DELAY_MS);
+    }
+
+    Serial.print("[BLE TX Sent]: ");
+    Serial.print(payload);
 }

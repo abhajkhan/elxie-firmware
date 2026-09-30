@@ -307,15 +307,8 @@ void LocalMenu::drawMenuScreen(bool batteryLow)
     }
     else if (currentScreen == MenuScreen::GAME_ACTIVE)
     {
-        display.setCursor(0, 5);
-        display.setTextSize(1);
-        display.println(GAME_NAMES[selectedGameIdx]);
-        display.setCursor(0, 25);
-        display.setTextSize(2);
-        display.printf("LEVEL %d", selectedLevel);
-        display.setTextSize(1);
-        display.setCursor(0, 50);
-        display.println("Playing...");
+        // Active game engine (e.g. ColorQuest) renders its own OLED screens
+        return;
     }
 
     pDisplay->drawBatteryOverlay(batteryLow);
