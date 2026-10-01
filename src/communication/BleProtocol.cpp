@@ -92,27 +92,7 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
     // 2. Structured JSON SSoT Command Messages
     if (type && strcmp(type, "command") == 0 && command)
     {
-        if (strcmp(command, "rc_start") == 0)
-        {
-            cmdOut.type = CommandType::NONE;
-            return true;
-        }
-        if (strcmp(command, "rc_stop") == 0)
-        {
-            cmdOut.type = CommandType::STOP_MOTORS;
-            return true;
-        }
-        if (strcmp(command, "rc_input") == 0 || strcmp(command, "game_input") == 0)
-        {
-            eventOut.type = InputEventType::JOYSTICK;
-            JsonObject payload = rawDocOut["payload"];
-            if (!payload.isNull())
-            {
-                eventOut.data.joystick.x = payload["x"] | 0;
-                eventOut.data.joystick.y = payload["y"] | 0;
-            }
-            return true;
-        }
+
         if (strcmp(command, "game_start") == 0)
         {
             cmdOut.type = CommandType::START_GAME;
@@ -129,6 +109,60 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
         {
             cmdOut.type = CommandType::ABORT_GAME;
             return true;
+        }
+    }
+
+    // 3. Mobile input format:
+    // {"v":1,"type":"input","ts":1790797156355,"payload":{"inputType":"joystick","dir":"up","magnitude":0.96}}
+    if (type && strcmp(type, "input") == 0)
+    {
+        JsonObject payload = rawDocOut["payload"];
+        if (!payload.isNull())
+        {
+            const char *inputType = payload["inputType"] | "";
+            if (strcmp(inputType, "joystick") == 0)
+            {
+                eventOut.type = InputEventType::JOYSTICK;
+                const char *dir = payload["dir"] | "";
+                float mag = payload["magnitude"] | 1.0f;
+                mag = constrain(mag, 0.0f, 1.0f);
+                int16_t speed = (int16_t)(mag * 255.0f);
+
+                if (strcmp(dir, "up") == 0 || strcmp(dir, "forward") == 0)
+                {
+                    eventOut.data.joystick.x = 0;
+                    eventOut.data.joystick.y = speed;
+                }
+                else if (strcmp(dir, "down") == 0 || strcmp(dir, "backward") == 0)
+                {
+                    eventOut.data.joystick.x = 0;
+                    eventOut.data.joystick.y = -speed;
+                }
+                else if (strcmp(dir, "left") == 0)
+                {
+                    eventOut.data.joystick.x = -speed;
+                    eventOut.data.joystick.y = 0;
+                }
+                else if (strcmp(dir, "right") == 0)
+                {
+                    eventOut.data.joystick.x = speed;
+                    eventOut.data.joystick.y = 0;
+                }
+                else
+                {
+                    eventOut.data.joystick.x = 0;
+                    eventOut.data.joystick.y = 0;
+                    cmdOut.type = CommandType::STOP_MOTORS;
+                }
+
+                if (!payload["x"].isNull() && !payload["y"].isNull())
+                {
+                    eventOut.data.joystick.x = payload["x"] | 0;
+                    eventOut.data.joystick.y = payload["y"] | 0;
+                }
+
+                return true;
+            }
         }
     }
 

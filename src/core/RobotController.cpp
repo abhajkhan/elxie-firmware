@@ -191,11 +191,15 @@ void RobotController::handleInputEvent(const InputEvent &event)
         return;
     }
 
-    if (event.type == InputEventType::JOYSTICK)
+    if (event.source == InputSource::BLE && currentState.mode == TopLevelState::IDLE)
     {
-        if (currentState.mode == TopLevelState::RC && pMotors)
+        transitionToState(TopLevelState::RC);
+    }
+
+    if (currentState.mode == TopLevelState::RC && pMotors)
+    {
+        if (event.type == InputEventType::JOYSTICK)
         {
-            // Direct normalized joystick drive execution for RC mode
             int16_t left = event.data.joystick.y + event.data.joystick.x;
             int16_t right = event.data.joystick.y - event.data.joystick.x;
 
@@ -221,11 +225,15 @@ void RobotController::handleInputEvent(const InputEvent &event)
             if (event.data.button.buttonId == 1 && event.data.button.pressed)
             {
                 static uint8_t colorState = 0;
-                if (colorState == 0) pLeds->setStripColor(255, 0, 0);      // Red
-                else if (colorState == 1) pLeds->setStripColor(0, 255, 0); // Green
-                else if (colorState == 2) pLeds->setStripColor(0, 0, 255); // Blue
-                else pLeds->setStripColor(0, 0, 0);                        // Off
-                
+                if (colorState == 0)
+                    pLeds->setStripColor(255, 0, 0); // Red
+                else if (colorState == 1)
+                    pLeds->setStripColor(0, 255, 0); // Green
+                else if (colorState == 2)
+                    pLeds->setStripColor(0, 0, 255); // Blue
+                else
+                    pLeds->setStripColor(0, 0, 0); // Off
+
                 colorState = (colorState + 1) % 4;
             }
         }
