@@ -16,11 +16,14 @@ public:
     static String serializeState(const char *stateStr, const char *ownerStr, bool bleConnected, bool remoteConnected);
     static String serializeHelloAck(const char *msgId, bool accepted, uint8_t protocolVersion = 1);
     static String serializePong(const char *msgId);
+    static String serializeGameStarted(const char *msgId, const char *gameIdStr, uint8_t level);
+    static String serializeGameResult(const char *gameIdStr, uint8_t level, uint8_t score, uint8_t stars, uint8_t tasksCompleted, uint8_t tasksTotal);
+    static String serializeGameAborted(const char *msgId);
     static String serializeResponse(const char *command, bool success, const char *message = nullptr);
     static String serializeError(const char *message);
 
-private:
     static GameId parseGameId(const char *idStr);
+    static const char *gameIdToString(GameId id);
 };
 
 #endif // BLE_PROTOCOL_H

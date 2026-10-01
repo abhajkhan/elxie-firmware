@@ -86,10 +86,6 @@ void loop()
     {
         localMenu.update(batteryManager.isLow());
     }
-    else
-    {
-        displayController.updateIdleDisplay(batteryManager.isLow());
-    }
 
     // 5. Process incoming BLE messages
     RobotCommand bleCmd;
@@ -125,8 +121,7 @@ void loop()
                 bleConnected,
                 espNowConnected,
                 sensorManager.isOledPresent(),
-                sensorManager.isMpu6050Present()
-            );
+                sensorManager.isMpu6050Present());
             Serial.printf("[Event] 'device_info_request' received (id: %s). Sending device_info response.\n", msgId);
             bleManager.sendTx(devInfoMsg);
         }
@@ -138,15 +133,38 @@ void loop()
         }
         else
         {
-            if (bleCmd.type != CommandType::NONE)
+            if (bleCmd.type == CommandType::START_GAME)
             {
-                Serial.printf("[Event] Process BLE Command Type: %d\n", (int)bleCmd.type);
+                const char *msgId = rawDoc["id"] | "game-001";
+                const char *gIdStr = rawDoc["payload"]["gameId"] | "color_quest";
+                uint8_t lvl = rawDoc["payload"]["level"] | 1;
+                String resp = BleProtocol::serializeGameStarted(msgId, gIdStr, lvl);
+                bleManager.sendTx(resp);
+
+                Serial.printf("[Event] Process BLE START_GAME: %s level %d\n", gIdStr, lvl);
                 controllerManager.processCommand(bleCmd);
             }
-            if (bleEvent.type != InputEventType::NONE)
+            else if (bleCmd.type == CommandType::ABORT_GAME)
             {
-                Serial.printf("[Event] Process BLE Input Event Type: %d\n", (int)bleEvent.type);
-                controllerManager.processInputEvent(bleEvent);
+                const char *msgId = rawDoc["id"] | "abort-001";
+                String resp = BleProtocol::serializeGameAborted(msgId);
+                bleManager.sendTx(resp);
+
+                Serial.println("[Event] Process BLE ABORT_GAME");
+                controllerManager.processCommand(bleCmd);
+            }
+            else
+            {
+                if (bleCmd.type != CommandType::NONE)
+                {
+                    Serial.printf("[Event] Process BLE Command Type: %d\n", (int)bleCmd.type);
+                    controllerManager.processCommand(bleCmd);
+                }
+                if (bleEvent.type != InputEventType::NONE)
+                {
+                    Serial.printf("[Event] Process BLE Input Event Type: %d\n", (int)bleEvent.type);
+                    controllerManager.processInputEvent(bleEvent);
+                }
             }
         }
     }
@@ -163,5 +181,5 @@ void loop()
     }
 
     // 7. Update Robot Controller state machine
-    robotController.update(sensorManager.getSnapshot());
+    robotController.update(sensorManager.getSnapshot(), batteryManager.isLow());
 }

@@ -9,8 +9,7 @@ static const GameColor COLOR_PALETTE[] = {
     {"cyan", 0, 255, 255},
     {"magenta", 255, 0, 255},
     {"orange", 255, 120, 0},
-    {"purple", 150, 0, 255}
-};
+    {"purple", 150, 0, 255}};
 static const size_t COLOR_PALETTE_N = sizeof(COLOR_PALETTE) / sizeof(COLOR_PALETTE[0]);
 
 void ColorQuest::begin(DisplayController *display, LedController *leds, BuzzerController *buzzer, BleManager *ble)
@@ -183,7 +182,7 @@ void ColorQuest::illuminateTask()
     unsigned long now = millis();
     showUntil = now + getDisplayDuration(level);
     showTaskPromptOled();
-    sendTaskBle("memorize");
+    // sendTaskBle("memorize");
     state = STATE_SHOWING;
 }
 
@@ -268,16 +267,21 @@ int ColorQuest::inputToDirection(const InputEvent &input)
 {
     if (input.type == InputEventType::DIRECTIONAL)
     {
-        if (input.data.directional.dirY > 0) return 0; // FRONT
-        if (input.data.directional.dirX > 0) return 1; // RIGHT
-        if (input.data.directional.dirY < 0) return 2; // BACK
-        if (input.data.directional.dirX < 0) return 3; // LEFT
+        if (input.data.directional.dirY > 0)
+            return 0; // FRONT
+        if (input.data.directional.dirX > 0)
+            return 1; // RIGHT
+        if (input.data.directional.dirY < 0)
+            return 2; // BACK
+        if (input.data.directional.dirX < 0)
+            return 3; // LEFT
     }
     else if (input.type == InputEventType::JOYSTICK)
     {
         int16_t x = input.data.joystick.x;
         int16_t y = input.data.joystick.y;
-        if (abs(x) < 50 && abs(y) < 50) return -1;
+        if (abs(x) < 50 && abs(y) < 50)
+            return -1;
         if (abs(x) > abs(y))
         {
             return (x > 0) ? 1 : 3;
@@ -291,11 +295,16 @@ int ColorQuest::inputToDirection(const InputEvent &input)
     {
         switch (input.data.menuAction)
         {
-        case MenuAction::NAV_UP: return 0;
-        case MenuAction::NAV_RIGHT: return 1;
-        case MenuAction::NAV_DOWN: return 2;
-        case MenuAction::NAV_LEFT: return 3;
-        default: break;
+        case MenuAction::NAV_UP:
+            return 0;
+        case MenuAction::NAV_RIGHT:
+            return 1;
+        case MenuAction::NAV_DOWN:
+            return 2;
+        case MenuAction::NAV_LEFT:
+            return 3;
+        default:
+            break;
         }
     }
     return -1;
@@ -323,7 +332,8 @@ void ColorQuest::answerDirection(int direction)
     if (lastAnswerCorrect)
     {
         correctCount++;
-        if (pBuzzer) pBuzzer->playTone(2400, 100);
+        if (pBuzzer)
+            pBuzzer->playTone(2400, 100);
         if (pLeds)
         {
             pLeds->setStripColor(0, 80, 0);
@@ -331,7 +341,8 @@ void ColorQuest::answerDirection(int direction)
     }
     else
     {
-        if (pBuzzer) pBuzzer->playTone(500, 250);
+        if (pBuzzer)
+            pBuzzer->playTone(500, 250);
         if (pLeds)
         {
             pLeds->setStripColor(80, 0, 0);
@@ -362,10 +373,18 @@ void ColorQuest::finishLevel()
 {
     stopOutputs();
 
-    float score = (float)correctCount / 10.0f;
+    float scoreFloat = (float)correctCount / 10.0f;
+    uint8_t stars = 0;
+    if (correctCount >= 8)
+        stars = 3;
+    else if (correctCount >= 5)
+        stars = 2;
+    else if (correctCount >= 1)
+        stars = 1;
+
     result.gameId = GameId::COLOR_QUEST;
     result.level = level;
-    result.score = score;
+    result.score = scoreFloat;
     result.correctCount = correctCount;
     result.totalTasks = 10;
     result.completed = true;
@@ -373,22 +392,14 @@ void ColorQuest::finishLevel()
 
     if (pBle && pBle->isConnected())
     {
-        JsonDocument resDoc;
-        resDoc["type"] = "response";
-        resDoc["game"] = "color-quest";
-        resDoc["level"] = level;
-        resDoc["score"] = score;
-        resDoc["correct"] = correctCount;
-        resDoc["tasks"] = 10;
-        String payload;
-        serializeJson(resDoc, payload);
+        String payload = BleProtocol::serializeGameResult("color_quest", level, correctCount, stars, correctCount, 10);
         pBle->sendTx(payload);
     }
 
-    Serial.printf("[ColorQuest] L%d Complete: %d/10, score=%.2f\n", level, correctCount, score);
+    Serial.printf("[ColorQuest] L%d Complete: %d/10, stars=%d, score=%.2f\n", level, correctCount, stars, scoreFloat);
     if (pBuzzer)
     {
-        pBuzzer->playTone(score >= 0.8f ? 2400 : 900, 150);
+        pBuzzer->playTone(scoreFloat >= 0.8f ? 2400 : 900, 150);
     }
 
     showResultOled();
@@ -399,7 +410,8 @@ void ColorQuest::finishLevel()
 void ColorQuest::abort()
 {
     stopOutputs();
-    if (pBuzzer) pBuzzer->stop();
+    if (pBuzzer)
+        pBuzzer->stop();
 
     state = STATE_IDLE;
     finished = true;

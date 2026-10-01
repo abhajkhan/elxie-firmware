@@ -16,13 +16,13 @@ void RobotController::begin(MotorController *motors, LedController *leds, Displa
     currentState.currentGame = GameId::NONE;
 }
 
-void RobotController::update(const SensorSnapshot &sensors)
+void RobotController::update(const SensorSnapshot &sensors, bool batteryLow)
 {
     // State machine tick
     switch (currentState.mode)
     {
     case TopLevelState::IDLE:
-        // Idle ambient updates owned by display/hardware modules
+        pDisplay->updateIdleDisplay(batteryLow);
         break;
     case TopLevelState::RC:
         // RC active

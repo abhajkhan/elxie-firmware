@@ -250,6 +250,73 @@ String BleProtocol::serializePong(const char *msgId)
     return out;
 }
 
+String BleProtocol::serializeGameStarted(const char *msgId, const char *gameIdStr, uint8_t level)
+{
+    JsonDocument doc;
+    doc["v"] = 1;
+    doc["type"] = "response";
+    doc["response"] = "game_started";
+    if (msgId && strlen(msgId) > 0)
+        doc["id"] = msgId;
+
+    JsonObject payload = doc["payload"].to<JsonObject>();
+    payload["gameId"] = gameIdStr ? gameIdStr : "color_quest";
+    payload["level"] = level;
+    payload["status"] = "running";
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
+String BleProtocol::serializeGameResult(const char *gameIdStr, uint8_t level, uint8_t score, uint8_t stars, uint8_t tasksCompleted, uint8_t tasksTotal)
+{
+    JsonDocument doc;
+    doc["v"] = 1;
+    doc["type"] = "response";
+    doc["response"] = "game_result";
+    doc["gameId"] = gameIdStr ? gameIdStr : "color_quest";
+    doc["level"] = level;
+    doc["score"] = score;
+    doc["stars"] = stars;
+    doc["tasksCompleted"] = tasksCompleted;
+    doc["tasksTotal"] = tasksTotal;
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
+String BleProtocol::serializeGameAborted(const char *msgId)
+{
+    JsonDocument doc;
+    doc["v"] = 1;
+    doc["type"] = "response";
+    doc["response"] = "game_aborted";
+    if (msgId && strlen(msgId) > 0)
+        doc["id"] = msgId;
+
+    JsonObject payload = doc["payload"].to<JsonObject>();
+    payload["status"] = "aborted";
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
+const char *BleProtocol::gameIdToString(GameId id)
+{
+    switch (id)
+    {
+    case GameId::COLOR_QUEST: return "color_quest";
+    case GameId::ECHO_MEMORY: return "echo_memory";
+    case GameId::REFLEX_ARC: return "reflex_arc";
+    case GameId::DRIVING_PRO: return "driving_pro";
+    case GameId::INVERTED_DRIVE: return "inverted_drive";
+    default: return "unknown";
+    }
+}
+
 String BleProtocol::serializeResponse(const char *command, bool success, const char *message)
 {
     JsonDocument doc;

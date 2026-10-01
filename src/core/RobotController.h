@@ -18,7 +18,7 @@ class RobotController
 {
 public:
     void begin(MotorController *motors, LedController *leds, DisplayController *display, BuzzerController *buzzer, LocalMenu *menu = nullptr, GameManager *gameManager = nullptr);
-    void update(const SensorSnapshot &sensors = SensorSnapshot{});
+    void update(const SensorSnapshot &sensors = SensorSnapshot{}, bool batteryLow = false);
 
     void onOwnershipChanged(InputSource previousOwner, InputSource newOwner);
     void handleCommand(const RobotCommand &cmd);
