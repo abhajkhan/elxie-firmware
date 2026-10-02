@@ -17,6 +17,7 @@ public:
     static String serializeHelloAck(const char *msgId, bool accepted, uint8_t protocolVersion = 1);
     static String serializePong(const char *msgId);
     static String serializeGameStarted(const char *msgId, const char *gameIdStr, uint8_t level);
+    static String serializeGameFeedback(const char *gameIdStr, uint8_t level, uint8_t taskId, bool correct, uint8_t correctCount);
     static String serializeGameResult(const char *gameIdStr, uint8_t level, uint8_t score, uint8_t stars, uint8_t tasksCompleted, uint8_t tasksTotal);
     static String serializeGameAborted(const char *msgId);
     static String serializeResponse(const char *command, bool success, const char *message = nullptr);

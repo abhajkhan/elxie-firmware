@@ -186,33 +186,33 @@ void ColorQuest::illuminateTask()
     state = STATE_SHOWING;
 }
 
-void ColorQuest::sendTaskBle(const char *phaseStr)
-{
-    if (!pBle || !pBle->isConnected())
-        return;
+// void ColorQuest::sendTaskBle(const char *phaseStr)
+// {
+//     if (!pBle || !pBle->isConnected())
+//         return;
 
-    JsonDocument doc;
-    doc["type"] = "task";
-    doc["game"] = "color-quest";
-    doc["level"] = level;
-    doc["index"] = taskIndex;
-    doc["phase"] = phaseStr;
-    doc["input"] = "region";
-    doc["regions"][0] = "front";
-    doc["regions"][1] = "right";
-    doc["regions"][2] = "back";
-    doc["regions"][3] = "left";
+//     JsonDocument doc;
+//     doc["type"] = "task";
+//     doc["game"] = "color-quest";
+//     doc["level"] = level;
+//     doc["index"] = taskIndex;
+//     doc["phase"] = phaseStr;
+//     doc["input"] = "region";
+//     doc["regions"][0] = "front";
+//     doc["regions"][1] = "right";
+//     doc["regions"][2] = "back";
+//     doc["regions"][3] = "left";
 
-    String payload;
-    serializeJson(doc, payload);
-    pBle->sendTx(payload);
-}
+//     String payload;
+//     serializeJson(doc, payload);
+//     pBle->sendTx(payload);
+// }
 
 void ColorQuest::beginAnswerPhase()
 {
     stopOutputs();
     showAnswerOled();
-    sendTaskBle("answer");
+    // sendTaskBle("answer");
 
     state = STATE_WAIT_INPUT;
     answerUntil = millis() + getAnswerTimeout(level);
@@ -353,15 +353,7 @@ void ColorQuest::answerDirection(int direction)
 
     if (pBle && pBle->isConnected())
     {
-        JsonDocument feedback;
-        feedback["type"] = "task_result";
-        feedback["game"] = "color-quest";
-        feedback["level"] = level;
-        feedback["index"] = taskIndex;
-        feedback["correct"] = lastAnswerCorrect;
-        feedback["correctCount"] = correctCount;
-        String payload;
-        serializeJson(feedback, payload);
+        String payload = BleProtocol::serializeGameFeedback("color_quest", level, taskIndex + 1, lastAnswerCorrect, correctCount);
         pBle->sendTx(payload);
     }
 

@@ -269,6 +269,23 @@ String BleProtocol::serializeGameStarted(const char *msgId, const char *gameIdSt
     return out;
 }
 
+String BleProtocol::serializeGameFeedback(const char *gameIdStr, uint8_t level, uint8_t taskId, bool correct, uint8_t correctCount)
+{
+    JsonDocument doc;
+    doc["v"] = 1;
+    doc["type"] = "response";
+    doc["response"] = "game_feedback";
+    doc["gameId"] = gameIdStr ? gameIdStr : "color_quest";
+    doc["level"] = level;
+    doc["taskId"] = taskId;
+    doc["correct"] = correct;
+    doc["correctCount"] = correctCount;
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
 String BleProtocol::serializeGameResult(const char *gameIdStr, uint8_t level, uint8_t score, uint8_t stars, uint8_t tasksCompleted, uint8_t tasksTotal)
 {
     JsonDocument doc;
