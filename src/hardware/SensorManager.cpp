@@ -188,15 +188,16 @@ void SensorManager::update()
     snapshot.cornerC3 = readMuxChannel(MUX_CH_C3);
     snapshot.cornerC4 = readMuxChannel(MUX_CH_C4);
 
-    snapshot.obstacleFrontLeft = (snapshot.cornerC1 > IR_OBSTACLE_THRESHOLD);
-    snapshot.obstacleFrontRight = (snapshot.cornerC2 > IR_OBSTACLE_THRESHOLD);
-    snapshot.obstacleRearLeft = (snapshot.cornerC3 > IR_OBSTACLE_THRESHOLD);
-    snapshot.obstacleRearRight = (snapshot.cornerC4 > IR_OBSTACLE_THRESHOLD);
+    snapshot.obstacleFrontLeft = (snapshot.cornerC1 < IR_OBSTACLE_THRESHOLD);
+    snapshot.obstacleFrontRight = (snapshot.cornerC2 < IR_OBSTACLE_THRESHOLD);
+    snapshot.obstacleRearLeft = (snapshot.cornerC3 < IR_OBSTACLE_THRESHOLD);
+    snapshot.obstacleRearRight = (snapshot.cornerC4 < IR_OBSTACLE_THRESHOLD);
 
     snapshot.bottomB1 = readMuxChannel(BOTTOM_CH[0]);
     snapshot.bottomB2 = readMuxChannel(BOTTOM_CH[1]);
     snapshot.bottomB3 = readMuxChannel(BOTTOM_CH[2]);
     snapshot.bottomB4 = readMuxChannel(BOTTOM_CH[3]);
+    snapshot.pitDetected = (snapshot.bottomB1 > 1000 || snapshot.bottomB2 > 1000 || snapshot.bottomB3 > 1000 || snapshot.bottomB4 > 1000);
 
     snapshot.frontDistanceCm = readSonarCm();
     snapshot.heading = readQmc5883HeadingByte();

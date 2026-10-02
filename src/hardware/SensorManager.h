@@ -21,6 +21,7 @@ struct SensorSnapshot
     uint16_t bottomB2 = 0;
     uint16_t bottomB3 = 0;
     uint16_t bottomB4 = 0;
+    bool pitDetected = false;
 
     int frontDistanceCm = -1;
     uint16_t heading = 0;

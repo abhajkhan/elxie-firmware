@@ -72,23 +72,6 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
         return true;
     }
 
-    if (type && strcmp(type, "led_set") == 0)
-    {
-        cmdOut.type = CommandType::SET_LED_COLOR;
-        cmdOut.led.r = rawDocOut["r"] | 0;
-        cmdOut.led.g = rawDocOut["g"] | 0;
-        cmdOut.led.b = rawDocOut["b"] | 0;
-        return true;
-    }
-
-    if (type && strcmp(type, "buzzer") == 0)
-    {
-        cmdOut.type = CommandType::PLAY_BUZZER_TONE;
-        cmdOut.buzzer.frequency = rawDocOut["frequency"] | 2000;
-        cmdOut.buzzer.durationMs = rawDocOut["duration"] | 200;
-        return true;
-    }
-
     // 2. Structured JSON SSoT Command Messages
     if (type && strcmp(type, "command") == 0 && command)
     {
@@ -108,6 +91,22 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
         if (strcmp(command, "game_abort") == 0)
         {
             cmdOut.type = CommandType::ABORT_GAME;
+            return true;
+        }
+        if (strcmp(command, "led_set") == 0)
+        {
+            cmdOut.type = CommandType::SET_LED_COLOR;
+            cmdOut.led.r = rawDocOut["r"] | 0;
+            cmdOut.led.g = rawDocOut["g"] | 0;
+            cmdOut.led.b = rawDocOut["b"] | 0;
+            return true;
+        }
+
+        if (strcmp(command, "honk") == 0)
+        {
+            cmdOut.type = CommandType::PLAY_BUZZER_TONE;
+            cmdOut.buzzer.frequency = rawDocOut["frequency"] | 2000;
+            cmdOut.buzzer.durationMs = rawDocOut["duration"] | 200;
             return true;
         }
     }
@@ -250,6 +249,51 @@ String BleProtocol::serializePong(const char *msgId)
     return out;
 }
 
+String BleProtocol::serializeTelemetry(const SensorSnapshot &snapshot, InputSource activeOwner, bool bleConnected, bool remoteConnected)
+{
+    JsonDocument doc;
+    doc["v"] = 1;
+    doc["type"] = "telemetry";
+    doc["timestamp"] = snapshot.timestamp > 0 ? snapshot.timestamp : millis();
+    doc["direction"] = snapshot.heading;
+
+    JsonObject dist = doc["distance"].to<JsonObject>();
+    dist["front"] = snapshot.frontDistanceCm;
+
+    JsonObject obs = doc["obstacle"].to<JsonObject>();
+    obs["frontLeft"] = snapshot.obstacleFrontLeft;
+    obs["frontRight"] = snapshot.obstacleFrontRight;
+    obs["rearLeft"] = snapshot.obstacleRearLeft;
+    obs["rearRight"] = snapshot.obstacleRearRight;
+
+    JsonObject motion = doc["motion"].to<JsonObject>();
+    motion["sudden"] = snapshot.suddenMotion;
+
+    JsonObject pit = doc["pit"].to<JsonObject>();
+    pit["detected"] = snapshot.pitDetected;
+
+    JsonObject batt = doc["battery"].to<JsonObject>();
+    batt["robot"] = snapshot.batteryPercent;
+
+    JsonObject touch = doc["touch"].to<JsonObject>();
+    touch["event"] = snapshot.touchActive ? "touched" : "none";
+
+    JsonObject ctrl = doc["controller"].to<JsonObject>();
+    if (activeOwner == InputSource::BLE)
+        ctrl["active"] = "mobile";
+    else if (activeOwner == InputSource::ESP_NOW)
+        ctrl["active"] = "remote";
+    else
+        ctrl["active"] = "none";
+
+    ctrl["bleConnected"] = bleConnected;
+    ctrl["remoteConnected"] = remoteConnected;
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
 String BleProtocol::serializeGameStarted(const char *msgId, const char *gameIdStr, uint8_t level)
 {
     JsonDocument doc;
@@ -325,12 +369,18 @@ const char *BleProtocol::gameIdToString(GameId id)
 {
     switch (id)
     {
-    case GameId::COLOR_QUEST: return "color_quest";
-    case GameId::ECHO_MEMORY: return "echo_memory";
-    case GameId::REFLEX_ARC: return "reflex_arc";
-    case GameId::DRIVING_PRO: return "driving_pro";
-    case GameId::INVERTED_DRIVE: return "inverted_drive";
-    default: return "unknown";
+    case GameId::COLOR_QUEST:
+        return "color_quest";
+    case GameId::ECHO_MEMORY:
+        return "echo_memory";
+    case GameId::REFLEX_ARC:
+        return "reflex_arc";
+    case GameId::DRIVING_PRO:
+        return "driving_pro";
+    case GameId::INVERTED_DRIVE:
+        return "inverted_drive";
+    default:
+        return "unknown";
     }
 }
 

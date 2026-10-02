@@ -182,4 +182,22 @@ void loop()
 
     // 7. Update Robot Controller state machine
     robotController.update(sensorManager.getSnapshot(), batteryManager.isLow());
+
+    // 8. Send live telemetry to mobile if BLE is connected and robot is in RC or GAME mode
+    static unsigned long lastTelemetryMs = 0;
+    unsigned long now = millis();
+    if (now - lastTelemetryMs >= 200)
+    {
+        lastTelemetryMs = now;
+        TopLevelState currentMode = robotController.getState().mode;
+        if (bleConnected)
+        {
+            String telemetryLine = BleProtocol::serializeTelemetry(
+                sensorManager.getSnapshot(),
+                controllerManager.getActiveOwner(),
+                bleConnected,
+                espNowConnected);
+            bleManager.sendTx(telemetryLine);
+        }
+    }
 }

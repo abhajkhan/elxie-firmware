@@ -6,6 +6,7 @@
 #include "../core/RobotCommand.h"
 #include "../core/InputEvent.h"
 #include "../core/RobotTypes.h"
+#include "../hardware/SensorManager.h"
 
 class BleProtocol
 {
@@ -16,6 +17,7 @@ public:
     static String serializeState(const char *stateStr, const char *ownerStr, bool bleConnected, bool remoteConnected);
     static String serializeHelloAck(const char *msgId, bool accepted, uint8_t protocolVersion = 1);
     static String serializePong(const char *msgId);
+    static String serializeTelemetry(const SensorSnapshot &snapshot, InputSource activeOwner, bool bleConnected, bool remoteConnected);
     static String serializeGameStarted(const char *msgId, const char *gameIdStr, uint8_t level);
     static String serializeGameFeedback(const char *gameIdStr, uint8_t level, uint8_t taskId, bool correct, uint8_t correctCount);
     static String serializeGameResult(const char *gameIdStr, uint8_t level, uint8_t score, uint8_t stars, uint8_t tasksCompleted, uint8_t tasksTotal);
