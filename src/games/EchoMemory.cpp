@@ -159,10 +159,6 @@ void EchoMemory::sendStartedBleResponse()
     {
         doc["id"] = sessionId;
     }
-    else
-    {
-        doc["id"] = "game-001";
-    }
 
     JsonObject payload = doc["payload"].to<JsonObject>();
     payload["gameId"] = "echo_memory";

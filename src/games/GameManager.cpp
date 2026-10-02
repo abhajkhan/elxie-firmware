@@ -13,7 +13,7 @@ void GameManager::begin(DisplayController *display, LedController *leds, BuzzerC
     pActiveEngine = nullptr;
 }
 
-bool GameManager::startGame(GameId gameId, uint8_t level, const String &sessionId)
+bool GameManager:: startGame(GameId gameId, uint8_t level, const String &sessionId)
 {
     abortGame();
 

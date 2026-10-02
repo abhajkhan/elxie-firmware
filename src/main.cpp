@@ -135,7 +135,13 @@ void loop()
         {
             if (bleCmd.type == CommandType::START_GAME)
             {
-                const char *msgId = rawDoc["id"] | "game-001";
+                const char *msgId = rawDoc["id"] | "";
+                if (strlen(msgId) > 0)
+                {
+                    strncpy(bleCmd.game.sessionId, msgId, sizeof(bleCmd.game.sessionId) - 1);
+                    bleCmd.game.sessionId[sizeof(bleCmd.game.sessionId) - 1] = '\0';
+                }
+
                 const char *gIdStr = rawDoc["payload"]["gameId"] | "color_quest";
                 uint8_t lvl = rawDoc["payload"]["level"] | 1;
 
@@ -145,7 +151,7 @@ void loop()
                     bleManager.sendTx(resp);
                 }
 
-                Serial.printf("[Event] Process BLE START_GAME: %s level %d\n", gIdStr, lvl);
+                Serial.printf("[Event] Process BLE START_GAME: %s level %d (id: %s)\n", gIdStr, lvl, bleCmd.game.sessionId);
                 controllerManager.processCommand(bleCmd);
             }
             else if (bleCmd.type == CommandType::ABORT_GAME)
