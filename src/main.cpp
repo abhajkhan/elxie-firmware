@@ -138,8 +138,12 @@ void loop()
                 const char *msgId = rawDoc["id"] | "game-001";
                 const char *gIdStr = rawDoc["payload"]["gameId"] | "color_quest";
                 uint8_t lvl = rawDoc["payload"]["level"] | 1;
-                String resp = BleProtocol::serializeGameStarted(msgId, gIdStr, lvl);
-                bleManager.sendTx(resp);
+
+                if (strcmp(gIdStr, "echo_memory") != 0)
+                {
+                    String resp = BleProtocol::serializeGameStarted(msgId, gIdStr, lvl);
+                    bleManager.sendTx(resp);
+                }
 
                 Serial.printf("[Event] Process BLE START_GAME: %s level %d\n", gIdStr, lvl);
                 controllerManager.processCommand(bleCmd);

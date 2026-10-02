@@ -35,7 +35,10 @@ enum class InputEventType : uint8_t
     BUTTON,
     ACTION_SELECT,
     BACK,
-    MENU_NAVIGATE
+    MENU_NAVIGATE,
+    RUN_SEQ,
+    PET,
+    HONK
 };
 
 enum class MenuAction : uint8_t

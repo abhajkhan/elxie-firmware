@@ -3,6 +3,7 @@
 
 #include "GameEngine.h"
 #include "ColorQuest.h"
+#include "EchoMemory.h"
 #include "../hardware/DisplayController.h"
 #include "../hardware/LedController.h"
 #include "../hardware/BuzzerController.h"
@@ -32,6 +33,7 @@ private:
 
     GameEngine *pActiveEngine = nullptr;
     ColorQuest colorQuest;
+    EchoMemory echoMemory;
 };
 
 #endif // GAME_MANAGER_H

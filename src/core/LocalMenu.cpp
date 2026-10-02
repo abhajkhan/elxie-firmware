@@ -134,7 +134,7 @@ void LocalMenu::handleInput(const InputEvent &event)
         else if (y < -80 && !debounced)
         { // Joystick DOWN -> increase index
             debounced = true;
-            uint8_t maxIdx = (currentScreen == MenuScreen::MAIN_MENU) ? (MAIN_MENU_COUNT - 1) : (currentScreen == MenuScreen::GAME_SELECT ? GAME_COUNT - 1 : 2);
+            uint8_t maxIdx = (currentScreen == MenuScreen::MAIN_MENU) ? (MAIN_MENU_COUNT - 1) : (currentScreen == MenuScreen::GAME_SELECT ? GAME_COUNT - 1 : 5);
             if (selectedIndex < maxIdx)
                 selectedIndex++;
         }

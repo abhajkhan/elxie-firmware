@@ -9,6 +9,7 @@ void GameManager::begin(DisplayController *display, LedController *leds, BuzzerC
     pBle = ble;
 
     colorQuest.begin(display, leds, buzzer, ble);
+    echoMemory.begin(display, leds, buzzer, ble);
     pActiveEngine = nullptr;
 }
 
@@ -19,6 +20,11 @@ bool GameManager::startGame(GameId gameId, uint8_t level, const String &sessionI
     if (gameId == GameId::COLOR_QUEST)
     {
         pActiveEngine = &colorQuest;
+        return pActiveEngine->start(level, sessionId);
+    }
+    else if (gameId == GameId::ECHO_MEMORY)
+    {
+        pActiveEngine = &echoMemory;
         return pActiveEngine->start(level, sessionId);
     }
 
