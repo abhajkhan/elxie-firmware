@@ -5,6 +5,7 @@
 #include "ColorQuest.h"
 #include "ReflexDash.h"
 #include "EchoMemory.h"
+#include "DrivingPro.h"
 #include "../hardware/DisplayController.h"
 #include "../hardware/LedController.h"
 #include "../hardware/BuzzerController.h"
@@ -17,6 +18,7 @@ public:
     void begin(DisplayController *display, LedController *leds, BuzzerController *buzzer, BleManager *ble = nullptr, MotorController *motors = nullptr);
 
     bool startGame(GameId gameId, uint8_t level, const String &msgId = "");
+    void startTask(uint8_t taskId, const char *msgId = "");
     void runSequence();
     void update(const SensorSnapshot &sensors);
     void handleInput(const InputEvent &input);
@@ -38,6 +40,7 @@ private:
     ColorQuest colorQuest;
     ReflexDash reflexDash;
     EchoMemory echoMemory;
+    DrivingPro drivingPro;
 };
 
 #endif // GAME_MANAGER_H

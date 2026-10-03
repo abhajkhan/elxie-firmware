@@ -134,7 +134,14 @@ void loop()
         else
         {
             const char *command = rawDoc["command"];
-            if (command && strcmp(command, "run_seq") == 0)
+            if (command && strcmp(command, "task_start") == 0)
+            {
+                const char *msgId = rawDoc["id"] | "task-001";
+                uint8_t taskId = rawDoc["payload"]["taskId"] | 1;
+                Serial.printf("[Event] Process BLE task_start: task %d (id: %s)\n", taskId, msgId);
+                gameManager.startTask(taskId, msgId);
+            }
+            else if (command && strcmp(command, "run_seq") == 0)
             {
                 Serial.println("[Event] Process BLE run_seq command");
                 gameManager.runSequence();
@@ -146,7 +153,7 @@ void loop()
                 const char *gIdStr = rawDoc["payload"]["gameId"] | "color_quest";
                 uint8_t lvl = rawDoc["payload"]["level"] | 1;
 
-                if (strcmp(gIdStr, "reflex_dash") != 0 && strcmp(gIdStr, "echo_memory") != 0)
+                if (strcmp(gIdStr, "reflex_dash") != 0 && strcmp(gIdStr, "echo_memory") != 0 && strcmp(gIdStr, "driving_pro") != 0)
                 {
                     String resp = BleProtocol::serializeGameStarted(msgId, gIdStr, lvl);
                     bleManager.sendTx(resp);

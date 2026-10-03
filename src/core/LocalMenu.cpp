@@ -266,17 +266,16 @@ void LocalMenu::drawMenuScreen(bool batteryLow)
         display.setCursor(0, 0);
         display.println("- SELECT GAME -");
 
-        for (uint8_t i = 0; i < GAME_COUNT; i++)
+        uint8_t startIdx = (selectedIndex >= 3) ? (selectedIndex - 2) : 0;
+        for (uint8_t i = 0; i < 3 && (startIdx + i) < GAME_COUNT; i++)
         {
-            if (i < 3)
-            {
-                display.setCursor(10, 16 + i * 14);
-                if (i == selectedIndex)
-                    display.print("> ");
-                else
-                    display.print("  ");
-                display.println(GAME_NAMES[i]);
-            }
+            uint8_t idx = startIdx + i;
+            display.setCursor(10, 16 + i * 14);
+            if (idx == selectedIndex)
+                display.print("> ");
+            else
+                display.print("  ");
+            display.println(GAME_NAMES[idx]);
         }
     }
     else if (currentScreen == MenuScreen::LEVEL_SELECT)
