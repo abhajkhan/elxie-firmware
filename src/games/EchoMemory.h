@@ -22,9 +22,11 @@ enum class EchoMemoryState
 {
     IDLE,
     MAPPING,
-    FLASHING,
+    GENERATE,
+    FLASH,
     WAIT,
     USER_INPUT,
+    CHECK,
     RESULT
 };
 
@@ -42,7 +44,11 @@ public:
     bool isFinished() const override { return finished; }
     GameResult getResult() const override { return result; }
 
+    EchoMemoryState getState() const { return state; }
+    bool isDpadEnabled() const;
+
 private:
+    void generateSequence();
     void startFlashingSequence();
     void showAction(uint8_t action);
     void playHonkSound();
@@ -53,7 +59,7 @@ private:
 
     void showMappingOled();
     void showFlashingOled();
-    void showWaitOled();
+    void showWaitOled(int remainingSec = 3);
     void showInputOled();
     void showFeedbackOled(bool correct);
     void showResultOled();
@@ -83,6 +89,7 @@ private:
     uint8_t flashIndex = 0;
     bool flashInGap = false;
     unsigned long phaseUntil = 0;
+    int lastWaitSec = -1;
 
     uint8_t inputIndex = 0;
     uint8_t wrongCount = 0;

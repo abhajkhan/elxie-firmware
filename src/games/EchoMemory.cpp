@@ -29,6 +29,11 @@ void EchoMemory::begin(DisplayController *display, LedController *leds, BuzzerCo
     pBle = ble;
 }
 
+bool EchoMemory::isDpadEnabled() const
+{
+    return state == EchoMemoryState::USER_INPUT;
+}
+
 bool EchoMemory::start(uint8_t lvl, const String &sessId)
 {
     if (lvl < 1 || lvl > 6)
@@ -114,12 +119,7 @@ bool EchoMemory::start(uint8_t lvl, const String &sessId)
     inputIndex = 0;
     wrongCount = 0;
     feedbackUntil = 0;
-
-    // Generate random sequence
-    for (uint8_t i = 0; i < sequenceLength; i++)
-    {
-        sequence[i] = random(0, actionCount);
-    }
+    lastWaitSec = -1;
 
     Serial.printf("[EchoMemory] Starting L%d (len=%d, flash=%dms, actions=%d, full=%s)\n",
                   level, sequenceLength, flashInterval, actionCount, fullStrip ? "yes" : "no");
@@ -135,6 +135,16 @@ bool EchoMemory::start(uint8_t lvl, const String &sessId)
     showMappingOled();
 
     return true;
+}
+
+void EchoMemory::generateSequence()
+{
+    state = EchoMemoryState::GENERATE;
+    for (uint8_t i = 0; i < sequenceLength; i++)
+    {
+        sequence[i] = random(0, actionCount);
+    }
+    startFlashingSequence();
 }
 
 void EchoMemory::stopOutputs()
@@ -178,9 +188,23 @@ void EchoMemory::sendStartedBleResponse()
 
 void EchoMemory::startFlashingSequence()
 {
-    state = EchoMemoryState::FLASHING;
+    state = EchoMemoryState::FLASH;
     flashIndex = 0;
     flashInGap = false;
+
+    if (pBle && pBle->isConnected())
+    {
+        JsonDocument doc;
+        doc["v"] = 1;
+        doc["type"] = "phase";
+        doc["game"] = "echo_memory";
+        doc["level"] = level;
+        doc["phase"] = "flash";
+        doc["length"] = sequenceLength;
+        String payload;
+        serializeJson(doc, payload);
+        pBle->sendTx(payload);
+    }
 
     showAction(sequence[0]);
     phaseUntil = millis() + (flashInterval - GAP_MS);
@@ -265,7 +289,11 @@ void EchoMemory::update(const SensorSnapshot &sensors)
         // Wait for run_seq command from BLE or select button from ESP-NOW
         break;
 
-    case EchoMemoryState::FLASHING:
+    case EchoMemoryState::GENERATE:
+        // Handled synchronously in generateSequence()
+        break;
+
+    case EchoMemoryState::FLASH:
         if ((long)(now - phaseUntil) >= 0)
         {
             if (!flashInGap)
@@ -284,7 +312,8 @@ void EchoMemory::update(const SensorSnapshot &sensors)
                     stopOutputs();
                     state = EchoMemoryState::WAIT;
                     phaseUntil = now + 3000;
-                    showWaitOled();
+                    lastWaitSec = -1;
+                    showWaitOled(3);
                 }
                 else
                 {
@@ -297,24 +326,89 @@ void EchoMemory::update(const SensorSnapshot &sensors)
         break;
 
     case EchoMemoryState::WAIT:
-        if ((long)(now - phaseUntil) >= 0)
+    {
+        long remainingMs = (long)(phaseUntil - now);
+        int currentSec = (remainingMs > 0) ? (int)((remainingMs + 999) / 1000) : 0;
+        if (currentSec != lastWaitSec)
+        {
+            lastWaitSec = currentSec;
+            showWaitOled(currentSec);
+
+            if (pBle && pBle->isConnected())
+            {
+                JsonDocument doc;
+                doc["v"] = 1;
+                doc["type"] = "phase";
+                doc["game"] = "echo_memory";
+                doc["level"] = level;
+                doc["phase"] = "wait";
+                doc["remainingSec"] = currentSec;
+                doc["durationMs"] = 3000;
+                String payload;
+                serializeJson(doc, payload);
+                pBle->sendTx(payload);
+            }
+        }
+
+        if (remainingMs <= 0)
         {
             stopOutputs();
             inputIndex = 0;
             wrongCount = 0;
             state = EchoMemoryState::USER_INPUT;
             showInputOled();
+
+            if (pBle && pBle->isConnected())
+            {
+                JsonDocument doc;
+                doc["v"] = 1;
+                doc["type"] = "phase";
+                doc["game"] = "echo_memory";
+                doc["level"] = level;
+                doc["phase"] = "input";
+                doc["index"] = inputIndex;
+                String payload;
+                serializeJson(doc, payload);
+                pBle->sendTx(payload);
+            }
         }
         break;
+    }
 
-    case EchoMemoryState::USER_INPUT:
+    case EchoMemoryState::CHECK:
         if (feedbackUntil != 0 && (long)(now - feedbackUntil) >= 0)
         {
             stopOutputs();
             feedbackUntil = 0;
+
+            if (inputIndex >= sequenceLength)
+            {
+                finishLevel();
+            }
+            else
+            {
+                state = EchoMemoryState::USER_INPUT;
+                showInputOled();
+
+                if (pBle && pBle->isConnected())
+                {
+                    JsonDocument doc;
+                    doc["v"] = 1;
+                    doc["type"] = "phase";
+                    doc["game"] = "echo_memory";
+                    doc["level"] = level;
+                    doc["phase"] = "input";
+                    doc["index"] = inputIndex;
+                    String payload;
+                    serializeJson(doc, payload);
+                    pBle->sendTx(payload);
+                }
+            }
         }
         break;
 
+    case EchoMemoryState::USER_INPUT:
+    case EchoMemoryState::RESULT:
     default:
         break;
     }
@@ -394,27 +488,30 @@ void EchoMemory::handleInput(const InputEvent &input)
     {
         if (input.type == InputEventType::RUN_SEQ || input.type == InputEventType::ACTION_SELECT)
         {
-            startFlashingSequence();
+            generateSequence();
         }
         return;
     }
 
-    if (state != EchoMemoryState::USER_INPUT)
-        return;
-
-    int act = parseInputToAction(input);
-    if (act >= 0 && act < actionCount)
+    if (!isDpadEnabled())
     {
-        answerAction(act);
+        // Enforce D-pad / control blocking in MAPPING, GENERATE, FLASH, WAIT states
+        return;
+    }
+
+    if (state == EchoMemoryState::USER_INPUT)
+    {
+        int act = parseInputToAction(input);
+        if (act >= 0 && act < actionCount)
+        {
+            answerAction(act);
+        }
     }
 }
 
 void EchoMemory::answerAction(uint8_t action)
 {
     if (state != EchoMemoryState::USER_INPUT)
-        return;
-
-    if (feedbackUntil != 0 && (long)(millis() - feedbackUntil) < 0)
         return;
 
     if (action == EMA_HONK)
@@ -450,13 +547,8 @@ void EchoMemory::answerAction(uint8_t action)
     }
 
     showFeedbackOled(correct);
+    state = EchoMemoryState::CHECK;
     feedbackUntil = millis() + 300;
-
-    if (inputIndex >= sequenceLength)
-    {
-        delay(300);
-        finishLevel();
-    }
 }
 
 void EchoMemory::finishLevel()
@@ -575,7 +667,7 @@ void EchoMemory::showFlashingOled()
     display.display();
 }
 
-void EchoMemory::showWaitOled()
+void EchoMemory::showWaitOled(int remainingSec)
 {
     if (!pDisplay || !pDisplay->isPresent())
         return;
@@ -584,8 +676,8 @@ void EchoMemory::showWaitOled()
     display.clearDisplay();
     display.setTextColor(SSD1306_WHITE);
     display.setTextSize(2);
-    display.setCursor(20, 16);
-    display.println("WAIT...");
+    display.setCursor(16, 16);
+    display.printf("WAIT %ds", remainingSec > 0 ? remainingSec : 0);
     display.setTextSize(1);
     display.setCursor(16, 44);
     display.println("Get ready!");
