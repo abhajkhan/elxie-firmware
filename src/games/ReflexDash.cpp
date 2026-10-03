@@ -169,7 +169,7 @@ void ReflexDash::setupColorMapping()
 
 bool ReflexDash::start(uint8_t lvl, const String &sessId)
 {
-    return startWithId(lvl, "game-001");
+    return startWithId(lvl, sessId.c_str());
 }
 
 bool ReflexDash::startWithId(uint8_t lvl, const char *msgId)

@@ -146,7 +146,7 @@ void loop()
                 const char *gIdStr = rawDoc["payload"]["gameId"] | "color_quest";
                 uint8_t lvl = rawDoc["payload"]["level"] | 1;
 
-                if (strcmp(gIdStr, "reflex_dash") != 0)
+                if (strcmp(gIdStr, "reflex_dash") != 0 && strcmp(gIdStr, "echo_memory") != 0)
                 {
                     String resp = BleProtocol::serializeGameStarted(msgId, gIdStr, lvl);
                     bleManager.sendTx(resp);

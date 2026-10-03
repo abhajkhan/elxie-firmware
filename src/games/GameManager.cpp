@@ -10,38 +10,48 @@ void GameManager::begin(DisplayController *display, LedController *leds, BuzzerC
 
     colorQuest.begin(display, leds, buzzer, ble);
     reflexDash.begin(display, leds, buzzer, ble, motors);
+    echoMemory.begin(display, leds, buzzer, ble);
     pActiveEngine = nullptr;
 }
 
-bool GameManager::startGame(GameId gameId, uint8_t level, const String &sessionId)
-{
-    return startGameWithId(gameId, level, "game-001");
-}
-
-bool GameManager::startGameWithId(GameId gameId, uint8_t level, const char *msgId)
+bool GameManager::startGame(GameId gameId, uint8_t level, const String &msgId)
 {
     abortGame();
 
-    if (gameId == GameId::COLOR_QUEST)
+    switch (gameId)
     {
+    case GameId::COLOR_QUEST:
         pActiveEngine = &colorQuest;
-        return pActiveEngine->start(level, msgId);
-    }
-    else if (gameId == GameId::REFLEX_DASH)
-    {
+        break;
+    case GameId::REFLEX_DASH:
         pActiveEngine = &reflexDash;
-        return reflexDash.startWithId(level, msgId);
+        break;
+    case GameId::ECHO_MEMORY:
+        pActiveEngine = &echoMemory;
+        break;
+    default:
+        Serial.printf("[GameManager] Unsupported game ID: %d\n", (int)gameId);
+        return false;
     }
 
-    Serial.printf("[GameManager] Unsupported game ID: %d\n", (int)gameId);
-    return false;
+    return pActiveEngine->start(level, msgId);
 }
 
 void GameManager::runSequence()
 {
-    if (pActiveEngine && pActiveEngine->getGameId() == GameId::REFLEX_DASH)
+    if (pActiveEngine)
     {
-        reflexDash.runSequence();
+        if (pActiveEngine->getGameId() == GameId::REFLEX_DASH)
+        {
+            reflexDash.runSequence();
+        }
+        else
+        {
+            InputEvent seqEvent;
+            seqEvent.source = InputSource::BLE;
+            seqEvent.type = InputEventType::RUN_SEQ;
+            pActiveEngine->handleInput(seqEvent);
+        }
     }
 }
 

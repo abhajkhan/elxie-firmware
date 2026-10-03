@@ -90,6 +90,11 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
             }
             return true;
         }
+        if (strcmp(command, "run_seq") == 0)
+        {
+            eventOut.type = InputEventType::RUN_SEQ;
+            return true;
+        }
         if (strcmp(command, "game_abort") == 0)
         {
             cmdOut.type = CommandType::ABORT_GAME;
@@ -109,6 +114,7 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
             cmdOut.type = CommandType::PLAY_BUZZER_TONE;
             cmdOut.buzzer.frequency = rawDocOut["frequency"] | 2000;
             cmdOut.buzzer.durationMs = rawDocOut["duration"] | 200;
+            eventOut.type = InputEventType::HONK;
             return true;
         }
     }
@@ -120,11 +126,22 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
         JsonObject payload = rawDocOut["payload"];
         if (!payload.isNull())
         {
+            const char *dir = payload["dir"] | payload["action"] | "";
+            if (strcmp(dir, "pet") == 0)
+            {
+                eventOut.type = InputEventType::PET;
+                return true;
+            }
+            if (strcmp(dir, "honk") == 0)
+            {
+                eventOut.type = InputEventType::HONK;
+                return true;
+            }
+
             const char *inputType = payload["inputType"] | "";
-            if (strcmp(inputType, "joystick") == 0)
+            if (strcmp(inputType, "joystick") == 0 || strlen(dir) > 0)
             {
                 eventOut.type = InputEventType::JOYSTICK;
-                const char *dir = payload["dir"] | "";
                 float mag = payload["magnitude"] | 1.0f;
                 mag = constrain(mag, 0.0f, 1.0f);
                 int16_t speed = (int16_t)(mag * 255.0f);
