@@ -9,8 +9,8 @@ GameId BleProtocol::parseGameId(const char *idStr)
         return GameId::COLOR_QUEST;
     if (strcmp(idStr, "echo_memory") == 0)
         return GameId::ECHO_MEMORY;
-    if (strcmp(idStr, "reflex_arc") == 0)
-        return GameId::REFLEX_ARC;
+    if (strcmp(idStr, "reflex_dash") == 0)
+        return GameId::REFLEX_DASH;
     if (strcmp(idStr, "driving_pro") == 0)
         return GameId::DRIVING_PRO;
     if (strcmp(idStr, "inverted_drive") == 0)
@@ -79,6 +79,8 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
         if (strcmp(command, "game_start") == 0)
         {
             cmdOut.type = CommandType::START_GAME;
+            const char *idStr = rawDocOut["id"] | "";
+            snprintf(cmdOut.game.reqId, sizeof(cmdOut.game.reqId), "%s", idStr);
             JsonObject payload = rawDocOut["payload"];
             if (!payload.isNull())
             {
@@ -195,7 +197,7 @@ String BleProtocol::serializeDeviceInfo(const char *msgId, const char *macAddres
     JsonArray games = caps["games"].to<JsonArray>();
     games.add("color_quest");
     games.add("echo_memory");
-    games.add("reflex_arc");
+    games.add("reflex_dash");
     games.add("driving_pro");
     games.add("inverted_drive");
 
@@ -373,8 +375,8 @@ const char *BleProtocol::gameIdToString(GameId id)
         return "color_quest";
     case GameId::ECHO_MEMORY:
         return "echo_memory";
-    case GameId::REFLEX_ARC:
-        return "reflex_arc";
+    case GameId::REFLEX_DASH:
+        return "reflex_dash";
     case GameId::DRIVING_PRO:
         return "driving_pro";
     case GameId::INVERTED_DRIVE:

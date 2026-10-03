@@ -15,7 +15,7 @@ enum class GameId : uint8_t
     NONE = 0,
     COLOR_QUEST,
     ECHO_MEMORY,
-    REFLEX_ARC,
+    REFLEX_DASH,
     DRIVING_PRO,
     INVERTED_DRIVE
 };

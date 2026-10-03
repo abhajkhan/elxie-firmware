@@ -56,7 +56,7 @@ void setup()
     batteryManager.begin();
 
     // Initialize Core Logic Modules
-    gameManager.begin(&displayController, &ledController, &buzzerController, &bleManager);
+    gameManager.begin(&displayController, &ledController, &buzzerController, &bleManager, &motorController);
     localMenu.begin(&displayController, &robotController);
     robotController.begin(&motorController, &ledController, &displayController, &buzzerController, &localMenu, &gameManager);
     controllerManager.begin(&robotController);
@@ -133,15 +133,26 @@ void loop()
         }
         else
         {
-            if (bleCmd.type == CommandType::START_GAME)
+            const char *command = rawDoc["command"];
+            if (command && strcmp(command, "run_seq") == 0)
             {
-                const char *msgId = rawDoc["id"] | "game-001";
+                Serial.println("[Event] Process BLE run_seq command");
+                gameManager.runSequence();
+            }
+            else if (bleCmd.type == CommandType::START_GAME)
+            {
+                const char *msgId = bleCmd.game.reqId[0] != '\0' ? bleCmd.game.reqId : (rawDoc["id"] | "game-001");
+                snprintf(bleCmd.game.reqId, sizeof(bleCmd.game.reqId), "%s", msgId);
                 const char *gIdStr = rawDoc["payload"]["gameId"] | "color_quest";
                 uint8_t lvl = rawDoc["payload"]["level"] | 1;
-                String resp = BleProtocol::serializeGameStarted(msgId, gIdStr, lvl);
-                bleManager.sendTx(resp);
 
-                Serial.printf("[Event] Process BLE START_GAME: %s level %d\n", gIdStr, lvl);
+                if (strcmp(gIdStr, "reflex_dash") != 0)
+                {
+                    String resp = BleProtocol::serializeGameStarted(msgId, gIdStr, lvl);
+                    bleManager.sendTx(resp);
+                }
+
+                Serial.printf("[Event] Process BLE START_GAME: %s level %d (id: %s)\n", gIdStr, lvl, msgId);
                 controllerManager.processCommand(bleCmd);
             }
             else if (bleCmd.type == CommandType::ABORT_GAME)

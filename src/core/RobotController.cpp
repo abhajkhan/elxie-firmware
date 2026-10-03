@@ -161,7 +161,7 @@ void RobotController::handleCommand(const RobotCommand &cmd)
             currentState.currentGame = cmd.game.gameId;
             if (pGameManager)
             {
-                pGameManager->startGame(cmd.game.gameId, cmd.game.level);
+                pGameManager->startGameWithId(cmd.game.gameId, cmd.game.level, cmd.game.reqId);
             }
         }
         break;

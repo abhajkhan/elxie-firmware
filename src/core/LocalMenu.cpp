@@ -10,13 +10,13 @@ static const uint8_t MAIN_MENU_COUNT = 2;
 static const char *GAME_NAMES[] = {
     "Colour Quest",
     "Echo Memory",
-    "Reflex Arc",
+    "Reflex Dash",
     "Driving Pro",
     "Inverted Drive"};
 static const GameId GAME_IDS[] = {
     GameId::COLOR_QUEST,
     GameId::ECHO_MEMORY,
-    GameId::REFLEX_ARC,
+    GameId::REFLEX_DASH,
     GameId::DRIVING_PRO,
     GameId::INVERTED_DRIVE};
 static const uint8_t GAME_COUNT = 5;
@@ -74,7 +74,7 @@ void LocalMenu::handleInput(const InputEvent &event)
             }
         }
         lastBtn2ClickMs = now;
-        
+
         // Single press BACK handling
         if (currentScreen != MenuScreen::FREE_RIDE_ACTIVE && currentScreen != MenuScreen::GAME_ACTIVE)
         {

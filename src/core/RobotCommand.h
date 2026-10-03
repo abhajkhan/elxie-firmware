@@ -47,6 +47,7 @@ struct RobotCommand
     {
         GameId gameId = GameId::NONE;
         uint8_t level = 1;
+        char reqId[64] = {0};
     } game;
 };
 

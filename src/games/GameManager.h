@@ -3,17 +3,21 @@
 
 #include "GameEngine.h"
 #include "ColorQuest.h"
+#include "ReflexDash.h"
 #include "../hardware/DisplayController.h"
 #include "../hardware/LedController.h"
 #include "../hardware/BuzzerController.h"
+#include "../hardware/MotorController.h"
 #include "../communication/BleManager.h"
 
 class GameManager
 {
 public:
-    void begin(DisplayController *display, LedController *leds, BuzzerController *buzzer, BleManager *ble = nullptr);
+    void begin(DisplayController *display, LedController *leds, BuzzerController *buzzer, BleManager *ble = nullptr, MotorController *motors = nullptr);
 
     bool startGame(GameId gameId, uint8_t level, const String &sessionId = "");
+    bool startGameWithId(GameId gameId, uint8_t level, const char *msgId);
+    void runSequence();
     void update(const SensorSnapshot &sensors);
     void handleInput(const InputEvent &input);
     void abortGame();
@@ -32,6 +36,7 @@ private:
 
     GameEngine *pActiveEngine = nullptr;
     ColorQuest colorQuest;
+    ReflexDash reflexDash;
 };
 
 #endif // GAME_MANAGER_H
