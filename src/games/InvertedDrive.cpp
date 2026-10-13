@@ -18,13 +18,15 @@ void InvertedDrive::initLevelParams()
     case 1:
         baseConcept = CONCEPT_FWD_BWD;
         levelTimerMs = 30000;
-        minTotalTurns = 3;
-        minLeftTurns = 1;
-        minRightTurns = 1;
+        requiredSafeDriveMs = 15000;
+        minTotalTurns = 5;
+        minLeftTurns = 2;
+        minRightTurns = 3;
         break;
     case 2:
         baseConcept = CONCEPT_FWD_BWD;
         levelTimerMs = 30000;
+        requiredSafeDriveMs = 15000;
         minTotalTurns = 5;
         minLeftTurns = 2;
         minRightTurns = 2;
@@ -32,6 +34,7 @@ void InvertedDrive::initLevelParams()
     case 3:
         baseConcept = CONCEPT_STEERING;
         levelTimerMs = 30000;
+        requiredSafeDriveMs = 15000;
         minTotalTurns = 3;
         minLeftTurns = 1;
         minRightTurns = 1;
@@ -39,6 +42,7 @@ void InvertedDrive::initLevelParams()
     case 4:
         baseConcept = CONCEPT_STEERING;
         levelTimerMs = 30000;
+        requiredSafeDriveMs = 15000;
         minTotalTurns = 5;
         minLeftTurns = 2;
         minRightTurns = 2;
@@ -46,6 +50,7 @@ void InvertedDrive::initLevelParams()
     case 5:
         baseConcept = CONCEPT_FULL;
         levelTimerMs = 30000;
+        requiredSafeDriveMs = 15000;
         minTotalTurns = 4;
         minLeftTurns = 2;
         minRightTurns = 2;
@@ -53,6 +58,7 @@ void InvertedDrive::initLevelParams()
     case 6:
         baseConcept = CONCEPT_DYNAMIC;
         levelTimerMs = 30000;
+        requiredSafeDriveMs = 15000;
         minTotalTurns = 4;
         minLeftTurns = 2;
         minRightTurns = 2;
@@ -60,9 +66,10 @@ void InvertedDrive::initLevelParams()
     default:
         baseConcept = CONCEPT_FWD_BWD;
         levelTimerMs = 30000;
-        minTotalTurns = 3;
-        minLeftTurns = 1;
-        minRightTurns = 1;
+        requiredSafeDriveMs = 15000;
+        minTotalTurns = 5;
+        minLeftTurns = 2;
+        minRightTurns = 3;
         break;
     }
 }
@@ -103,7 +110,6 @@ bool InvertedDrive::startWithId(uint8_t lvl, const char *msgId)
     passedCount = 0;
     collisionOccurred = false;
 
-    requiredSafeDriveMs = 15000;
     activeDriveMs = 0;
 
     currentLogicalDir = DIR_NONE;
@@ -157,6 +163,12 @@ void InvertedDrive::sendGameStartedBle()
     payload["gameId"] = "inverted_drive";
     payload["level"] = level;
     payload["status"] = "running";
+
+    JsonObject targets = payload["targets"].to<JsonObject>();
+    targets["safeDriveTargetSec"] = requiredSafeDriveMs / 1000;
+    targets["minTotalTurns"] = minTotalTurns;
+    targets["minLeftTurns"] = minLeftTurns;
+    targets["minRightTurns"] = minRightTurns;
 
     String out;
     serializeJson(doc, out);
