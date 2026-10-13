@@ -47,6 +47,7 @@ private:
     void sendGameStartedBle();
     void sendGameStateTask(uint8_t taskNum, const char *statusStr);
     void sendGameStateLevel(const char *statusStr);
+    void sendGameProgressBle();
     void sendGameResultBle(const char *statusStr);
     void sendHapticWarningBle();
 
@@ -102,6 +103,8 @@ private:
     uint32_t requiredSafeDriveMs = 15000; // 15s active safe driving required for Task 1
     uint32_t activeDriveMs = 0;          // Cumulative active driving duration (ms)
     unsigned long lastUpdateMs = 0;      // Timestamp of last update tick
+    unsigned long lastProgressMs = 0;    // Timestamp of last live progress telemetry transmission
+    MappingConcept lastReportedConcept = CONCEPT_NORMAL; // Track mode transition for Level 6 Dynamic Invert
 
     bool task1Passed = false; // Safe driving without collision for required duration
     bool task1Failed = false; // Set true when a collision occurs during Task 1

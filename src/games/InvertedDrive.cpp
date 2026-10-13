@@ -119,6 +119,8 @@ bool InvertedDrive::startWithId(uint8_t lvl, const char *msgId)
     levelStartMs = millis();
     lastWarningMs = 0;
     lastUpdateMs = millis();
+    lastProgressMs = 0;
+    lastReportedConcept = CONCEPT_NORMAL;
     state = IDS_RUNNING;
 
     Serial.printf("[InvertedDrive] Starting L%d (timer=%dms, turns=%d, L=%d, R=%d)\n",
@@ -210,6 +212,39 @@ void InvertedDrive::sendGameStateLevel(const char *statusStr)
     payload["game"] = "inverted_drive";
     payload["level"] = level;
     payload["status"] = statusStr;
+
+    String out;
+    serializeJson(doc, out);
+    pBle->sendTx(out);
+}
+
+void InvertedDrive::sendGameProgressBle()
+{
+    if (!pBle || !pBle->isConnected())
+        return;
+
+    JsonDocument doc;
+    doc["v"] = 1;
+    doc["type"] = "response";
+    doc["response"] = "game_feedback";
+    doc["gameId"] = "inverted_drive";
+    doc["level"] = level;
+
+    JsonObject payload = doc["payload"].to<JsonObject>();
+    payload["safeDriveElapsedSec"] = activeDriveMs / 1000;
+    payload["safeDriveTargetSec"] = requiredSafeDriveMs / 1000;
+    payload["totalTurns"] = totalTurns;
+    payload["minTotalTurns"] = minTotalTurns;
+    payload["leftTurns"] = leftTurns;
+    payload["minLeftTurns"] = minLeftTurns;
+    payload["rightTurns"] = rightTurns;
+    payload["minRightTurns"] = minRightTurns;
+
+    if (level == 6)
+    {
+        MappingConcept activeConcept = getActiveConcept();
+        payload["controlMode"] = (activeConcept == CONCEPT_FULL) ? "full_invert" : "normal";
+    }
 
     String out;
     serializeJson(doc, out);
@@ -586,6 +621,26 @@ void InvertedDrive::update(const SensorSnapshot &sensors)
     {
         finishLevel(true);
         return;
+    }
+
+    // Level 6 Dynamic Invert: Check if active control mode has transitioned to notify immediately
+    bool conceptChanged = false;
+    if (baseConcept == CONCEPT_DYNAMIC)
+    {
+        MappingConcept activeConcept = getActiveConcept();
+        if (activeConcept != lastReportedConcept)
+        {
+            lastReportedConcept = activeConcept;
+            conceptChanged = true;
+            Serial.printf("[InvertedDrive] Dynamic Mode switched to: %s\n", (activeConcept == CONCEPT_FULL) ? "full_invert" : "normal");
+        }
+    }
+
+    // Periodically send live objective progress telemetry to frontend (every 250ms or immediately on mode change)
+    if (conceptChanged || (now - lastProgressMs >= 250))
+    {
+        lastProgressMs = now;
+        sendGameProgressBle();
     }
 
     showOledRunning();
