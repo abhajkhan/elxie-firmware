@@ -12,6 +12,7 @@ void GameManager::begin(DisplayController *display, LedController *leds, BuzzerC
     reflexDash.begin(display, leds, buzzer, ble, motors);
     echoMemory.begin(display, leds, buzzer, ble);
     drivingPro.begin(display, leds, buzzer, ble, motors);
+    invertedDrive.begin(display, leds, buzzer, ble, motors);
     pActiveEngine = nullptr;
 }
 
@@ -32,6 +33,9 @@ bool GameManager::startGame(GameId gameId, uint8_t level, const String &msgId)
         break;
     case GameId::DRIVING_PRO:
         pActiveEngine = &drivingPro;
+        break;
+    case GameId::INVERTED_DRIVE:
+        pActiveEngine = &invertedDrive;
         break;
     default:
         Serial.printf("[GameManager] Unsupported game ID: %d\n", (int)gameId);

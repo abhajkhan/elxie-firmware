@@ -175,8 +175,18 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
 
                 if (!payload["x"].isNull() && !payload["y"].isNull())
                 {
-                    eventOut.data.joystick.x = payload["x"] | 0;
-                    eventOut.data.joystick.y = payload["y"] | 0;
+                    float rawX = payload["x"].as<float>();
+                    float rawY = payload["y"].as<float>();
+                    if (fabs(rawX) <= 1.0f && fabs(rawY) <= 1.0f && (rawX != 0.0f || rawY != 0.0f))
+                    {
+                        eventOut.data.joystick.x = (int16_t)constrain(round(rawX * 255.0f), -255.0f, 255.0f);
+                        eventOut.data.joystick.y = (int16_t)constrain(round(rawY * 255.0f), -255.0f, 255.0f);
+                    }
+                    else
+                    {
+                        eventOut.data.joystick.x = (int16_t)constrain(round(rawX), -255.0f, 255.0f);
+                        eventOut.data.joystick.y = (int16_t)constrain(round(rawY), -255.0f, 255.0f);
+                    }
                 }
 
                 return true;

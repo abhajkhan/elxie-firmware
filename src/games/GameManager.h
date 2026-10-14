@@ -6,6 +6,7 @@
 #include "ReflexDash.h"
 #include "EchoMemory.h"
 #include "DrivingPro.h"
+#include "InvertedDrive.h"
 #include "../hardware/DisplayController.h"
 #include "../hardware/LedController.h"
 #include "../hardware/BuzzerController.h"
@@ -41,6 +42,7 @@ private:
     ReflexDash reflexDash;
     EchoMemory echoMemory;
     DrivingPro drivingPro;
+    InvertedDrive invertedDrive;
 };
 
 #endif // GAME_MANAGER_H
