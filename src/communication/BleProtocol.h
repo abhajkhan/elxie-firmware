@@ -19,7 +19,11 @@ public:
     static String serializePong(const char *msgId);
     static String serializeTelemetry(const SensorSnapshot &snapshot, InputSource activeOwner, bool bleConnected, bool remoteConnected);
     static String serializeGameStarted(const char *msgId, const char *gameIdStr, uint8_t level);
+    static String serializeTaskStarted(const char *msgId, const char *gameIdStr, uint8_t level, uint8_t taskId, uint32_t durationMs);
     static String serializeGameFeedback(const char *gameIdStr, uint8_t level, uint8_t taskId, bool correct, uint8_t correctCount);
+    static String serializeTaskFeedback(const char *gameIdStr, uint8_t level, uint8_t taskId, bool correct, uint8_t correctCount);
+    static String serializeTaskResult(const char *gameIdStr, uint8_t level, uint8_t taskId, const char *statusStr, uint8_t score, uint8_t stars);
+    static String serializeGameOver(const char *gameIdStr, uint8_t level, const char *reasonStr, uint8_t tasksCompleted, uint8_t tasksTotal, uint8_t score, uint8_t stars);
     static String serializeGameResult(const char *gameIdStr, uint8_t level, uint8_t score, uint8_t stars, uint8_t tasksCompleted, uint8_t tasksTotal);
     static String serializeGameAborted(const char *msgId);
     static String serializeResponse(const char *command, bool success, const char *message = nullptr);

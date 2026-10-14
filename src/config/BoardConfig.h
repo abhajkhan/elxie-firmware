@@ -90,7 +90,7 @@ constexpr uint8_t BOTTOM_CH[4] = {10, 8, 12, 13}; // FL, FR, RL, RR
 constexpr uint8_t RIGHT_PIXELS[] = {6, 7, 8};
 constexpr uint8_t FRONT_PIXELS[] = {27, 28};
 constexpr uint8_t LEFT_PIXELS[] = {18, 19, 20};
-constexpr uint8_t BACK_PIXELS[] = {11, 12};
+constexpr uint8_t BACK_PIXELS[] = {13, 12};
 
 #define RIGHT_PIXEL_COUNT (sizeof(RIGHT_PIXELS) / sizeof(RIGHT_PIXELS[0]))
 #define FRONT_PIXEL_COUNT (sizeof(FRONT_PIXELS) / sizeof(FRONT_PIXELS[0]))

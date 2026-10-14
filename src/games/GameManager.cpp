@@ -11,6 +11,8 @@ void GameManager::begin(DisplayController *display, LedController *leds, BuzzerC
     colorQuest.begin(display, leds, buzzer, ble);
     reflexDash.begin(display, leds, buzzer, ble, motors);
     echoMemory.begin(display, leds, buzzer, ble);
+    drivingPro.begin(display, leds, buzzer, ble, motors);
+    invertedDrive.begin(display, leds, buzzer, ble, motors);
     pActiveEngine = nullptr;
 }
 
@@ -29,12 +31,26 @@ bool GameManager::startGame(GameId gameId, uint8_t level, const String &msgId)
     case GameId::ECHO_MEMORY:
         pActiveEngine = &echoMemory;
         break;
+    case GameId::DRIVING_PRO:
+        pActiveEngine = &drivingPro;
+        break;
+    case GameId::INVERTED_DRIVE:
+        pActiveEngine = &invertedDrive;
+        break;
     default:
         Serial.printf("[GameManager] Unsupported game ID: %d\n", (int)gameId);
         return false;
     }
 
     return pActiveEngine->start(level, msgId);
+}
+
+void GameManager::startTask(uint8_t taskId, const char *msgId)
+{
+    if (pActiveEngine && pActiveEngine->getGameId() == GameId::DRIVING_PRO)
+    {
+        drivingPro.startTask(taskId, msgId);
+    }
 }
 
 void GameManager::runSequence()
@@ -44,6 +60,10 @@ void GameManager::runSequence()
         if (pActiveEngine->getGameId() == GameId::REFLEX_DASH)
         {
             reflexDash.runSequence();
+        }
+        else if (pActiveEngine->getGameId() == GameId::DRIVING_PRO)
+        {
+            drivingPro.startTask(1, "run_seq");
         }
         else
         {

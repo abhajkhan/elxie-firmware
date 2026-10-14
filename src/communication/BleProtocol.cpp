@@ -175,8 +175,18 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
 
                 if (!payload["x"].isNull() && !payload["y"].isNull())
                 {
-                    eventOut.data.joystick.x = payload["x"] | 0;
-                    eventOut.data.joystick.y = payload["y"] | 0;
+                    float rawX = payload["x"].as<float>();
+                    float rawY = payload["y"].as<float>();
+                    if (fabs(rawX) <= 1.0f && fabs(rawY) <= 1.0f && (rawX != 0.0f || rawY != 0.0f))
+                    {
+                        eventOut.data.joystick.x = (int16_t)constrain(round(rawX * 255.0f), -255.0f, 255.0f);
+                        eventOut.data.joystick.y = (int16_t)constrain(round(rawY * 255.0f), -255.0f, 255.0f);
+                    }
+                    else
+                    {
+                        eventOut.data.joystick.x = (int16_t)constrain(round(rawX), -255.0f, 255.0f);
+                        eventOut.data.joystick.y = (int16_t)constrain(round(rawY), -255.0f, 255.0f);
+                    }
                 }
 
                 return true;
@@ -332,6 +342,25 @@ String BleProtocol::serializeGameStarted(const char *msgId, const char *gameIdSt
     return out;
 }
 
+String BleProtocol::serializeTaskStarted(const char *msgId, const char *gameIdStr, uint8_t level, uint8_t taskId, uint32_t durationMs)
+{
+    JsonDocument doc;
+    doc["v"] = 1;
+    doc["type"] = "response";
+    doc["response"] = "task_started";
+    doc["id"] = (msgId && strlen(msgId) > 0) ? msgId : "task-001";
+
+    JsonObject payload = doc["payload"].to<JsonObject>();
+    payload["gameId"] = gameIdStr ? gameIdStr : "driving_pro";
+    payload["level"] = level;
+    payload["taskId"] = taskId;
+    payload["durationMs"] = durationMs;
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
 String BleProtocol::serializeGameFeedback(const char *gameIdStr, uint8_t level, uint8_t taskId, bool correct, uint8_t correctCount)
 {
     JsonDocument doc;
@@ -343,6 +372,52 @@ String BleProtocol::serializeGameFeedback(const char *gameIdStr, uint8_t level, 
     doc["taskId"] = taskId;
     doc["correct"] = correct;
     doc["correctCount"] = correctCount;
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
+String BleProtocol::serializeTaskFeedback(const char *gameIdStr, uint8_t level, uint8_t taskId, bool correct, uint8_t correctCount)
+{
+    return serializeGameFeedback(gameIdStr, level, taskId, correct, correctCount);
+}
+
+String BleProtocol::serializeTaskResult(const char *gameIdStr, uint8_t level, uint8_t taskId, const char *statusStr, uint8_t score, uint8_t stars)
+{
+    JsonDocument doc;
+    doc["v"] = 1;
+    doc["type"] = "response";
+    doc["response"] = "task_result";
+    doc["gameId"] = gameIdStr ? gameIdStr : "driving_pro";
+    doc["level"] = level;
+    doc["taskId"] = taskId;
+
+    JsonObject payload = doc["payload"].to<JsonObject>();
+    payload["status"] = statusStr ? statusStr : "passed";
+    payload["score"] = score;
+    payload["stars"] = stars;
+
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
+String BleProtocol::serializeGameOver(const char *gameIdStr, uint8_t level, const char *reasonStr, uint8_t tasksCompleted, uint8_t tasksTotal, uint8_t score, uint8_t stars)
+{
+    JsonDocument doc;
+    doc["v"] = 1;
+    doc["type"] = "response";
+    doc["response"] = "game_over";
+    doc["gameId"] = gameIdStr ? gameIdStr : "driving_pro";
+    doc["level"] = level;
+    doc["reason"] = reasonStr ? reasonStr : "task_failed";
+
+    JsonObject payload = doc["payload"].to<JsonObject>();
+    payload["tasksCompleted"] = tasksCompleted;
+    payload["tasksTotal"] = tasksTotal;
+    payload["score"] = score;
+    payload["stars"] = stars;
 
     String out;
     serializeJson(doc, out);
