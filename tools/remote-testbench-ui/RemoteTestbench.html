@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remote Testbench</title>
+<style>
+/* Elxie remote testbench dashboard: same look as tools/testbench-ui/ElxieTestbench.html */
+:root{
+  --bg:#e8ecf0; --panel:#f8fafb; --ink:#1b2430; --mute:#5d6b7a; --line:#cfd7df;
+  --elx:#ff7a1a; --body:#dfe5eb; --bodyline:#9aa8b6;
+  --pass:#1f9d55; --fail:#d63b3b; --warn:#c98a00; --check:#7a5af8; --idle:#a3afbb;
+  --radius-sm:6px; --radius-lg:14px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141a21; --panel:#1c242d; --ink:#e6ecf2; --mute:#94a3b3; --line:#2e3a46;
+  --body:#24303b; --bodyline:#4a5a6a; --idle:#4f5d6b;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:3px solid var(--elx);outline-offset:2px}
+
+header{display:flex;align-items:center;gap:12px;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:20px;margin:0 8px 0 0;font-weight:800;letter-spacing:-.01em}
+header h1 b{color:var(--elx)}
+.conn{display:flex;align-items:center;gap:8px;color:var(--mute);font-size:14px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--idle);flex:none}
+.dot.on{background:var(--pass);box-shadow:0 0 0 4px color-mix(in srgb,var(--pass) 25%,transparent)}
+.spacer{flex:1}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:var(--radius-sm);padding:7px 14px;cursor:pointer;min-height:38px}
+.btn:hover{border-color:var(--bodyline)}
+.btn.primary{background:var(--elx);border-color:var(--elx);color:#fff;font-weight:700}
+.btn.stop{background:var(--fail);border-color:var(--fail);color:#fff;font-weight:700}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+#banner{display:flex;align-items:center;gap:14px;padding:12px 18px;font-size:18px;font-weight:700;background:var(--ink);color:var(--bg);min-height:52px}
+#banner .step{font-size:13px;font-weight:600;opacity:.75;white-space:nowrap}
+#banner.ask{background:var(--elx);color:#fff}
+#bar{height:4px;background:var(--line)} #bar i{display:block;height:100%;width:0;background:var(--elx);transition:width .3s}
+
+main{display:grid;grid-template-columns:300px minmax(360px,1fr) 340px;gap:16px;padding:16px 18px;align-items:start}
+@media (max-width:1180px){main{grid-template-columns:300px 1fr}.instruments{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}}
+@media (max-width:760px){main{grid-template-columns:1fr;padding:12px}}
+section.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:14px 16px}
+h2{font-size:15px;margin:0 0 10px;font-weight:750}
+.sub{color:var(--mute);font-size:13px}
+
+#tests{list-style:none;margin:0;padding:0;counter-reset:t}
+#tests li{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:start;padding:8px 0;border-top:1px solid var(--line)}
+#tests li:first-child{border-top:0}
+#tests li .n{counter-increment:t;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:var(--line);color:var(--mute)}
+#tests li .n::before{content:counter(t)}
+#tests li.PASS .n{background:var(--pass);color:#fff} #tests li.FAIL .n{background:var(--fail);color:#fff}
+#tests li.WARN .n{background:var(--warn);color:#fff} #tests li.CHECK .n{background:var(--check);color:#fff}
+#tests li.running .n{background:var(--elx);color:#fff;animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--elx) 30%,transparent)}}
+@media (prefers-reduced-motion:reduce){#tests li.running .n{animation:none}}
+#tests .name{font-weight:650}
+#tests .st{font-size:12px;font-weight:800;margin-left:6px}
+#tests li.PASS .st{color:var(--pass)} #tests li.FAIL .st{color:var(--fail)} #tests li.WARN .st{color:var(--warn)} #tests li.CHECK .st{color:var(--check)}
+#tests .d{font-size:13px;color:var(--mute);word-break:break-word}
+#tests .run1{border:1px solid var(--line);background:none;border-radius:var(--radius-sm);padding:2px 9px;cursor:pointer;font-size:13px;min-height:30px}
+.summary{display:flex;gap:6px;margin:12px 0 0;flex-wrap:wrap}
+.chip{border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;background:var(--line)}
+.chip.p{background:var(--pass);color:#fff}.chip.f{background:var(--fail);color:#fff}.chip.w{background:var(--warn);color:#fff}.chip.c{background:var(--check);color:#fff}
+
+/* remote view */
+#remote{width:100%;height:auto;display:block;max-height:560px}
+#remote text{font-family:inherit;fill:var(--mute);font-size:12px}
+#remote .val{fill:var(--ink);font-variant-numeric:tabular-nums;font-weight:650}
+.axes{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;margin-top:8px;font-size:13px}
+.axes .track{position:relative;height:14px;border-radius:7px;background:var(--line);overflow:hidden}
+.axes .track i{position:absolute;top:0;bottom:0;width:4px;margin-left:-2px;background:var(--elx);border-radius:2px}
+.axes .track b{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--elx) 22%,transparent)}
+.axes .track s{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:var(--ink);opacity:.5}
+
+.instruments{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;gap:14px;align-items:center}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:13px}
+.kv span:nth-child(odd){color:var(--mute)}
+.big{font-size:30px;font-weight:800;line-height:1}
+.meter{height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:8px}
+.meter i{display:block;height:100%;width:0;background:var(--pass);transition:width .2s}
+.ctl{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.ctl .btn{padding:6px 4px;font-size:13px}
+label.inl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute);margin-top:8px}
+.pill{display:inline-block;min-width:44px;text-align:center;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:700;background:var(--line);color:var(--mute)}
+.pill.on{background:var(--pass);color:#fff} .pill.bad{background:var(--fail);color:#fff} .pill.mid{background:var(--warn);color:#fff}
+.kv span.pill{color:#fff}
+.mac{font:13px ui-monospace,Consolas,monospace}
+.calgrid{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 8px;align-items:center;font-size:13px;color:var(--mute);margin-top:10px}
+.calgrid input{width:100%;min-height:34px;padding:4px 8px}
+
+.logpanel{margin:0 18px 18px}
+#log{height:220px;overflow:auto;background:#0f1419;color:#d8dee6;border-radius:var(--radius-sm);padding:8px 10px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap}
+#log .PASS{color:#5ee08f} #log .FAIL{color:#ff8a8a} #log .WARN{color:#ffd166} #log .CHECK{color:#c3b2ff} #log .ask{color:#ffb070;font-weight:700} #log .me{color:#8fd3ff}
+.hint{color:var(--mute);font-size:13px;margin:8px 0 0}
+</style>
+</head>
+<body>
+<header>
+  <h1><b>Elxie</b> remote testbench</h1>
+  <div class="conn"><span class="dot" id="dot"></span><span id="connText">Not connected</span></div>
+  <div class="spacer"></div>
+  <button class="btn primary" id="btnConnect">Connect remote</button>
+  <button class="btn" id="btnReset" disabled title="Restart the remote (the full test run starts again)">Restart remote</button>
+  <button class="btn" id="btnDemo" title="Show the dashboard with made-up data, no remote needed">Demo</button>
+  <button class="btn" id="btnSave" title="Download everything the remote printed this session">Save log</button>
+</header>
+<div id="banner"><span class="step" id="stepText">Ready</span><span id="askText">Plug the remote into USB, then press Connect remote.</span></div>
+<div id="bar"><i id="barFill"></i></div>
+
+<main>
+  <section class="panel" aria-labelledby="hTests">
+    <div class="row" style="justify-content:space-between;margin-bottom:6px">
+      <h2 id="hTests" style="margin:0">Test sequence</h2>
+      <button class="btn primary" id="btnRunAll" disabled style="white-space:nowrap">Run all tests</button>
+    </div>
+    <ol id="tests"></ol>
+    <div class="summary" id="summary"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="hLive">
+    <div class="row" style="justify-content:space-between">
+      <h2 id="hLive" style="margin:0">Live remote</h2>
+      <label class="inl" style="margin:0"><input type="checkbox" id="liveToggle" checked> Stream live data</label>
+    </div>
+    <svg id="remote" viewBox="0 0 420 380" role="img" aria-label="The remote's joystick and buttons, live"></svg>
+    <div class="axes num">
+      <span>X</span><div class="track" id="trX"><b></b><s></s><i></i></div><span id="vX">–</span>
+      <span>Y</span><div class="track" id="trY"><b></b><s></s><i></i></div><span id="vY">–</span>
+    </div>
+    <div class="kv num" id="seesKv" style="margin-top:10px"><span>Blocks see</span><span>–</span></div>
+    <p class="hint">The shaded band is the range seen so far; the black tick is the measured centre. The dashed circle is the games' dead zone (150 counts).</p>
+  </section>
+
+  <div class="instruments">
+    <section class="panel" aria-labelledby="hRadio">
+      <h2 id="hRadio">Radio (ESP-NOW)</h2>
+      <div class="kv num" id="radioKv"><span>Radio</span><span>–</span></div>
+      <div class="meter" title="Packets the robot answered"><i id="ackBar"></i></div>
+      <label class="inl"><input type="checkbox" id="linkToggle"> Send to the robot like the real remote (50 per second)</label>
+      <div class="sub" style="margin-top:4px">The robot will drive with the joystick when this is on and it is in RC mode.</div>
+      <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="btn" id="btnPing">Ping robot</button><button class="btn" id="btnMac">Show MACs</button></div>
+      <h2 style="margin:14px 0 6px">Pairing</h2>
+      <div class="kv num" id="pairKv"><span>Robot</span><span>–</span></div>
+      <div class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap"><button class="btn primary" id="btnPair">Pair with a robot</button><button class="btn" id="btnForget">Forget robot</button></div>
+      <div class="sub" style="margin-top:4px">Pair: first put the robot in pairing mode (hold its touch pad while switching it on), then press Pair within 30 s.</div>
+    </section>
+
+    <section class="panel" aria-labelledby="hBatt">
+      <h2 id="hBatt">Battery</h2>
+      <div class="row" style="justify-content:space-between">
+        <div><span class="big num" id="battV">–</span> <span class="sub">volts</span></div>
+        <div class="sub num" style="text-align:right" id="battRaw">raw –</div>
+      </div>
+      <div class="meter"><i id="battBar"></i></div>
+      <div class="calgrid">
+        <span>Divider top</span><input class="btn num" id="rTop" type="number" min="0" step="1" value="0"><span>k&Omega;</span>
+        <span>Divider bottom</span><input class="btn num" id="rBot" type="number" min="1" step="1" value="1"><span>k&Omega;</span>
+        <span>Multimeter reads</span><input class="btn num" id="meterV" type="number" min="0" step="0.01" placeholder="volts"><button class="btn" id="btnCal">Calibrate</button>
+      </div>
+      <div class="sub" id="battNote" style="margin-top:4px">Enter the divider resistors, or measure the battery and press Calibrate.</div>
+    </section>
+
+    <section class="panel" aria-labelledby="hVib">
+      <h2 id="hVib">Vibration motor</h2>
+      <div class="ctl">
+        <button class="btn" data-b="short">Short</button><button class="btn" data-b="heart">Double</button><button class="btn" data-b="sine">Swell</button>
+      </div>
+      <div class="row" style="margin-top:8px;gap:8px">
+        <button class="btn" data-b="on">On</button><button class="btn" data-b="off">Off</button>
+        <div class="spacer"></div><button class="btn stop" id="btnStop">Stop all</button>
+      </div>
+      <div class="sub" id="ackText" style="margin-top:8px">&nbsp;</div>
+    </section>
+  </div>
+</main>
+
+<section class="panel logpanel" aria-labelledby="hLog">
+  <div class="row" style="justify-content:space-between;margin-bottom:8px">
+    <h2 id="hLog" style="margin:0">Log</h2>
+    <label class="inl" style="margin:0"><input type="checkbox" id="showData"> Show data lines</label>
+  </div>
+  <div id="log" aria-live="off"></div>
+</section>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const TESTS = [
+  ['adc', 'Joystick mux', 'the 4051 switches channels'],
+  ['centre', 'Joystick centre', 'near 512 at rest, little noise'],
+  ['joyrange', 'Joystick range', 'both axes reach both ends'],
+  ['joydir', 'Joystick direction', 'UP = Y up, RIGHT = X up'],
+  ['buttons', 'Buttons', 'front, bottom and stick press'],
+  ['battery', 'Battery', '3.3 to 4.35 V'],
+  ['motor', 'Vibration motor', 'short, double, swell'],
+  ['radio', 'Radio to the robot', 'the robot answers packets'],
+];
+const state = { results: {}, running: null, runningAll: false, connected: false, demo: null, cx: 512, cy: 512,
+  x0: 1023, x1: 0, y0: 1023, y1: 0 };
+const logLines = [];
+const t0 = performance.now();
+
+// ------------------------------------------------------------ test list
+function buildTests() {
+  const ol = $('tests'); ol.innerHTML = '';
+  for (const [id, name, what] of TESTS) {
+    const li = document.createElement('li'); li.id = 't_' + id;
+    li.innerHTML = `<span class="n" aria-hidden="true"></span><div><span class="name">${name}</span><span class="st"></span><div class="d">${what}</div></div>` +
+      `<button class="run1" data-id="${id}" disabled aria-label="Run the ${name} test">Run</button>`;
+    ol.appendChild(li);
+  }
+  ol.addEventListener('click', (e) => { const b = e.target.closest('.run1'); if (b) send('run ' + b.dataset.id); });
+}
+function setTest(id, st, detail) {
+  const li = $('t_' + id); if (!li) return;
+  li.className = st || '';
+  li.querySelector('.st').textContent = st && st !== 'running' ? st : '';
+  if (detail !== undefined) li.querySelector('.d').textContent = detail;
+}
+function summary(c) {
+  $('summary').innerHTML = c ? `<span class="chip p">${c.pass} pass</span><span class="chip f">${c.fail} fail</span><span class="chip w">${c.warn} warn</span><span class="chip c">${c.check} check</span>` +
+    (c.secs !== undefined ? `<span class="chip">${c.secs} s</span>` : '') : '';
+}
+
+// ------------------------------------------------------------ remote drawing (SVG)
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const R = 120, PX = 160, PY = 175;  // joystick pad radius and centre
+const vis = {};
+function buildRemote() {
+  const svg = $('remote');
+  // pad
+  el('circle', { cx: PX, cy: PY, r: R + 14, fill: 'var(--body)', stroke: 'var(--bodyline)', 'stroke-width': 2 }, svg);
+  el('line', { x1: PX - R, x2: PX + R, y1: PY, y2: PY, stroke: 'var(--line)' }, svg);
+  el('line', { x1: PX, x2: PX, y1: PY - R, y2: PY + R, stroke: 'var(--line)' }, svg);
+  vis.dead = el('circle', { cx: PX, cy: PY, r: R * 150 / 512, fill: 'none', stroke: 'var(--bodyline)', 'stroke-dasharray': '4 3' }, svg);
+  vis.range = el('rect', { x: PX, y: PY, width: 0, height: 0, fill: 'none', stroke: 'var(--elx)', 'stroke-width': 1.5, opacity: .7 }, svg);
+  vis.trail = el('polyline', { points: '', fill: 'none', stroke: 'var(--elx)', 'stroke-width': 2, opacity: .35, 'stroke-linejoin': 'round' }, svg);
+  vis.knob = el('circle', { cx: PX, cy: PY, r: 18, fill: 'var(--elx)', stroke: '#fff', 'stroke-width': 3 }, svg);
+  el('text', { x: PX, y: PY - R - 22, 'text-anchor': 'middle' }, svg).textContent = 'UP (away from you)';
+  el('text', { x: PX + R - 6, y: PY - 8, 'text-anchor': 'end' }, svg).textContent = 'RIGHT';
+  vis.xy = el('text', { x: PX, y: PY + R + 34, 'text-anchor': 'middle', class: 'val' }, svg);
+  // buttons
+  const bx = 372;
+  const mk = (y, label, key) => {
+    vis[key] = el('circle', { cx: bx, cy: y, r: 22, fill: 'var(--line)', stroke: 'var(--bodyline)', 'stroke-width': 2 }, svg);
+    el('text', { x: bx, y: y + 40, 'text-anchor': 'middle' }, svg).textContent = label;
+  };
+  mk(70, 'front (A)', 'b1'); mk(170, 'bottom (B)', 'b2'); mk(270, 'stick (click)', 'sw');
+}
+const trail = [];
+function drawJoy(x, y) {
+  const nx = Math.max(-1, Math.min(1, (x - state.cx) / 512)), ny = Math.max(-1, Math.min(1, (y - state.cy) / 512));
+  const px = PX + nx * R, py = PY - ny * R;  // UP = Y going up
+  vis.knob.setAttribute('cx', px); vis.knob.setAttribute('cy', py);
+  trail.push(`${px.toFixed(1)},${py.toFixed(1)}`); if (trail.length > 40) trail.shift();
+  vis.trail.setAttribute('points', trail.join(' '));
+  state.x0 = Math.min(state.x0, x); state.x1 = Math.max(state.x1, x); state.y0 = Math.min(state.y0, y); state.y1 = Math.max(state.y1, y);
+  const rx0 = PX + (state.x0 - state.cx) / 512 * R, rx1 = PX + (state.x1 - state.cx) / 512 * R;
+  const ry0 = PY - (state.y1 - state.cy) / 512 * R, ry1 = PY - (state.y0 - state.cy) / 512 * R;
+  vis.range.setAttribute('x', rx0); vis.range.setAttribute('width', Math.max(0, rx1 - rx0));
+  vis.range.setAttribute('y', ry0); vis.range.setAttribute('height', Math.max(0, ry1 - ry0));
+  vis.xy.textContent = `X ${x}   Y ${y}`;
+  for (const [k, v, lo, hi, c] of [['X', x, state.x0, state.x1, state.cx], ['Y', y, state.y0, state.y1, state.cy]]) {
+    const tr = $('tr' + k);
+    tr.querySelector('i').style.left = (v / 1023 * 100) + '%';
+    tr.querySelector('b').style.left = (lo / 1023 * 100) + '%'; tr.querySelector('b').style.width = (Math.max(0, hi - lo) / 1023 * 100) + '%';
+    tr.querySelector('s').style.left = (c / 1023 * 100) + '%';
+    $('v' + k).textContent = `${v}  (${lo <= hi ? lo + '..' + hi : '–'})`;
+  }
+  // what the robot makes of it (Home firmware blocks: dead zone 60, full scale 450; games: dead zone 150)
+  const blk = (raw) => { let d = raw - 512; if (Math.abs(d) < 60) d = 0; return Math.max(-100, Math.min(100, Math.trunc(d * 100 / 450))); };
+  const game = (raw) => { let d = raw - 512; if (Math.abs(d) < 150) d = 0; return Math.max(-200, Math.min(200, Math.round(d * 200 / 512))); };
+  $('seesKv').innerHTML = `<span>Blocks see</span><span>joystick X ${blk(x)}, Y ${blk(y)} (−100..100)</span><span>Games see</span><span>turn ${game(x)}, forward ${game(y)} (−200..200)</span>`;
+}
+function setBtn(key, on) { vis[key].setAttribute('fill', on ? 'var(--elx)' : 'var(--line)'); }
+
+// ------------------------------------------------------------ battery
+function battFactor() {
+  const cal = parseFloat(localStorage.getItem('elxRemoteBattCal') || '');
+  if (cal > 0) return { f: cal, how: 'multimeter calibration' };
+  const top = +$('rTop').value || 0, bot = +$('rBot').value || 1;
+  return { f: 3.2 / 1023 * (top + bot) / bot, how: top ? `divider ${top} k / ${bot} k` : 'no divider entered (voltage at A0 only)' };
+}
+let lastBatRaw = 0;
+function showBattery(raw) {
+  lastBatRaw = raw;
+  const { f, how } = battFactor();
+  const v = raw * f;
+  $('battV').textContent = v.toFixed(2);
+  $('battRaw').textContent = `raw ${raw} · ${(raw * 3.2 / 1023).toFixed(2)} V at A0`;
+  const pct = Math.max(0, Math.min(100, (v - 3.3) / (4.2 - 3.3) * 100));
+  $('battBar').style.width = pct + '%';
+  $('battBar').style.background = pct < 20 ? 'var(--fail)' : pct < 45 ? 'var(--warn)' : 'var(--pass)';
+  $('battNote').textContent = `Using ${how}. Factor ${f.toFixed(5)} V per count.`;
+}
+
+// ------------------------------------------------------------ live data
+let lastLive = 0;
+function onLive(d) {
+  lastLive = performance.now();
+  drawJoy(d.x, d.y);
+  setBtn('b1', d.b1); setBtn('b2', d.b2); setBtn('sw', d.sw);
+  showBattery(d.bat);
+  const ack = d.ack < 0 ? null : d.ack;
+  const pill = (txt, cls) => `<span class="pill ${cls}">${txt}</span>`;
+  $('radioKv').innerHTML =
+    `<span>Radio</span><span>${d.radio ? pill('ESP-NOW on', 'on') : pill('failed', 'bad')}</span>` +
+    `<span>This remote</span><span class="mac">${state.me || '–'}</span>` +
+    `<span>Sends to</span><span class="mac">${state.robot || '90:70:69:14:D4:38'}${state.paired === false ? ' (default)' : ''}</span>` +
+    `<span>Sending</span><span>${d.tx.toFixed(0)} packets/s${d.link ? ' (like the real remote)' : ''}</span>` +
+    `<span>Robot answers</span><span>${ack === null ? '– (nothing sent this second)' : ack.toFixed(0) + ' %'}</span>` +
+    `<span>Total</span><span>${d.acked} of ${d.sent} answered</span>` +
+    `<span>From robot</span><span>${d.fb} alert packets, last ${['OK', 'obstacle', 'drop'][d.alert] || d.alert}</span>`;
+  $('ackBar').style.width = (ack === null ? 0 : ack) + '%';
+  $('ackBar').style.background = ack === null ? 'var(--idle)' : ack > 75 ? 'var(--pass)' : ack > 0 ? 'var(--warn)' : 'var(--fail)';
+  $('linkToggle').checked = !!d.link;
+}
+
+// ------------------------------------------------------------ messages from the remote
+function handleLine(line) {
+  if (line.startsWith('@')) {
+    let m; try { m = JSON.parse(line.slice(1)); } catch (e) { return; }
+    if ($('showData').checked && (m.t !== 'live' || Math.random() < 0.1)) addLog(line, 'me');
+    handleMsg(m); return;
+  }
+  let cls = '';
+  const r = /^RESULT\s+\S+\s+(PASS|FAIL|WARN|CHECK)/.exec(line) || /^\s+(PASS|FAIL|WARN|CHECK) /.exec(line);
+  if (r) cls = r[1]; else if (line.startsWith('>>>')) cls = 'ask';
+  addLog(line, cls);
+}
+function handleMsg(m) {
+  switch (m.t) {
+    case 'live': onLive(m); break;
+    case 'hello': state.me = m.me; if (m.robot) { state.robot = m.robot; state.paired = !!m.paired; showPair(); } banner('Connected', `Remote testbench ${m.v} is running. The tests start by themselves after a restart.`); break;
+    case 'mac': state.me = m.me; state.robot = m.robot; if (m.paired !== undefined) state.paired = !!m.paired; showPair(); addLog(`MAC: this remote ${m.me}, sends to robot ${m.robot}`, 'me'); break;
+    case 'cal':
+      if (m.cx !== undefined) { state.cx = m.cx; state.cy = m.cy; }
+      if (m.x0 !== undefined) { state.x0 = m.x0; state.x1 = m.x1; state.y0 = m.y0; state.y1 = m.y1; }
+      break;
+    case 'start':
+      state.runningAll = true; state.results = {}; summary(null);
+      for (const [id, , what] of TESTS) setTest(id, '', what);
+      banner('Starting', `Running all ${TESTS.length} tests. Follow the orange instructions.`);
+      progress(0); setBusy(true); break;
+    case 'test': {
+      state.running = m.id; setTest(m.id, 'running');
+      const i = TESTS.findIndex((t) => t[0] === m.id);
+      if (m.id === 'joyrange') { state.x0 = 1023; state.x1 = 0; state.y0 = 1023; state.y1 = 0; }
+      banner(`Test ${i + 1} of ${TESTS.length}`, m.title); progress(state.runningAll ? i / TESTS.length : 0); setBusy(true); break;
+    }
+    case 'ask': banner(null, m.m, true); break;
+    case 'res': state.results[m.id] = m.st; setTest(m.id, m.st, m.d); break;
+    case 'end': state.running = null; setBusy(false); banner('Done', `${testName(m.id)} test finished.`); break;
+    case 'done':
+      state.runningAll = false; state.running = null; setBusy(false); progress(1); summary(m);
+      banner('Finished', m.fail ? `${m.fail} test(s) failed. Read the red lines, fix, then run again.` : 'All tests ran. Confirm the purple CHECK item by feel.');
+      break;
+    case 'pair':
+      if (m.robot) state.robot = m.robot;
+      if (m.st === 'searching') { state.pairing = true; banner('Pairing', 'Looking for a robot in pairing mode (30 s)...', true); }
+      else {
+        state.pairing = false;
+        if (m.st === 'ok') { state.paired = true; banner('Paired', `This remote now talks to robot ${m.robot}.`); }
+        else if (m.st === 'fail') banner('Not paired', `No robot answered. Still talking to ${m.robot}. Is the robot in pairing mode (blue blinking)?`);
+        else if (m.st === 'forgotten') { state.paired = false; banner('Forgotten', `Back to the default robot ${m.robot}.`); }
+      }
+      showPair(); break;
+    case 'ack': $('ackText').textContent = 'Remote: ' + m.m; break;
+    case 'err': $('ackText').textContent = 'Remote says: ' + m.m; break;
+  }
+}
+function showPair() {
+  const st = state.pairing ? '<span class="pill mid">searching…</span>' : state.paired ? '<span class="pill on">paired</span>' : '<span class="pill">default, never paired</span>';
+  $('pairKv').innerHTML = `<span>Status</span><span>${st}</span><span>Robot</span><span class="mac">${state.robot || '–'}</span><span>This remote</span><span class="mac">${state.me || '–'}</span>`;
+  $('btnPair').disabled = !!state.pairing || !state.connected; $('btnForget').disabled = !!state.pairing || !state.connected;
+}
+const testName = (id) => (TESTS.find((t) => t[0] === id) || [id, id])[1];
+function banner(step, text, ask) {
+  if (step !== null) $('stepText').textContent = step;
+  $('askText').textContent = text;
+  $('banner').classList.toggle('ask', !!ask);
+}
+function progress(f) { $('barFill').style.width = (f * 100).toFixed(0) + '%'; }
+function setBusy(b) {
+  $('btnRunAll').disabled = b || !state.connected;
+  document.querySelectorAll('.run1').forEach((x) => (x.disabled = b || !state.connected));
+}
+function addLog(text, cls) {
+  const ts = ((performance.now() - t0) / 1000).toFixed(1);
+  logLines.push(`[${ts.padStart(6)}s] ${text}`);
+  const box = $('log');
+  const atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+  const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = text; box.appendChild(d);
+  while (box.childNodes.length > 2000) box.removeChild(box.firstChild);
+  if (atEnd) box.scrollTop = box.scrollHeight;
+}
+
+// ------------------------------------------------------------ serial link (Web Serial)
+let port = null, writer = null, reading = false;
+async function connect() {
+  if (!('serial' in navigator)) { banner('Not supported', 'This browser cannot use USB. Open this page in Microsoft Edge or Google Chrome.'); return; }
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200, bufferSize: 65536 });
+    try { await port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) {}
+  } catch (e) { banner('Not connected', e.message.includes('open') ? 'That port is busy. Close serial monitors or REMOTE_TESTBENCH.bat, then try again.' : 'No port chosen.'); port = null; return; }
+  stopDemo();
+  writer = port.writable.getWriter();
+  state.connected = true; setBusy(false); $('btnReset').disabled = false; showPair();
+  $('dot').classList.add('on'); $('connText').textContent = 'Connected';
+  $('btnConnect').textContent = 'Disconnect';
+  banner('Connected', 'Waiting for data from the remote. If nothing appears, press Restart remote.');
+  addLog('--- connected ---', 'me');
+  readLoop();
+  setTimeout(() => send('mac'), 500);
+}
+async function readLoop() {
+  reading = true;
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (port && port.readable && reading) {
+    const reader = port.readable.getReader();
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i).replace(/\r$/, ''); buf = buf.slice(i + 1); if (line) handleLine(line); }
+      }
+    } catch (e) { addLog('--- read error: ' + e.message, 'FAIL'); break; }
+    finally { reader.releaseLock(); }
+  }
+  if (state.connected) disconnect();
+}
+async function disconnect() {
+  reading = false; state.connected = false;
+  try { if (writer) { writer.releaseLock(); writer = null; } } catch (e) {}
+  try { if (port) await port.close(); } catch (e) {}
+  port = null;
+  $('dot').classList.remove('on'); $('connText').textContent = 'Not connected'; $('btnConnect').textContent = 'Connect remote';
+  $('btnReset').disabled = true; setBusy(false);
+  banner('Disconnected', 'Press Connect remote to reconnect.');
+}
+async function send(cmd) {
+  if (state.demo) { demoCommand(cmd); return; }
+  if (!writer) { $('ackText').textContent = 'Connect the remote first.'; return; }
+  addLog('> ' + cmd, 'me');
+  await writer.write(new TextEncoder().encode(cmd + '\n'));
+}
+async function restart() {  // D1 Mini: RTS pulls RST low (like esptool's hard reset)
+  if (!port) return;
+  addLog('--- restarting the remote ---', 'me');
+  await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+  await new Promise((r) => setTimeout(r, 120));
+  await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+}
+
+// ------------------------------------------------------------ demo (no remote)
+function startDemo() {
+  if (state.connected) return;
+  if (state.demo) { stopDemo(); return; }
+  $('btnDemo').textContent = 'Stop demo';
+  $('connText').textContent = 'Demo data'; $('dot').classList.add('on');
+  state.connected = true; setBusy(false); state.me = '5C:CF:7F:12:34:56'; state.robot = '90:70:69:14:D4:38'; state.paired = false; showPair();
+  let k = 0, sent = 0, acked = 0;
+  state.demo = setInterval(() => {
+    k++;
+    const link = !!state.demoLink;
+    if (link) { sent += 2; acked += Math.random() < 0.95 ? 2 : 1; }
+    handleMsg({ t: 'live', ms: k * 50, x: Math.round(512 + 470 * Math.cos(k / 14)), y: Math.round(520 + 460 * Math.sin(k / 14)),
+      b1: k % 60 < 6 ? 1 : 0, b2: k % 90 < 6 ? 1 : 0, sw: k % 120 < 6 ? 1 : 0, bat: 845, radio: 1, link: link ? 1 : 0,
+      tx: link ? 50 : 0, ack: link ? 96 : -1, sent, acked, fb: 3, alert: 0 });
+  }, 50);
+}
+function stopDemo() {
+  if (!state.demo) return;
+  clearInterval(state.demo); state.demo = null; clearTimeout(state.demoRun);
+  state.connected = false; setBusy(false);
+  $('btnDemo').textContent = 'Demo'; $('connText').textContent = 'Not connected'; $('dot').classList.remove('on');
+}
+function demoCommand(cmd) {
+  const [c, a] = cmd.split(' ');
+  if (c === 'link') state.demoLink = a === '1';
+  if (c === 'pair') { handleMsg({ t: 'pair', st: 'searching' }); state.demoRun = setTimeout(() => handleMsg({ t: 'pair', st: 'ok', robot: '90:70:69:2A:11:7C' }), 2500); return; }
+  if (c === 'forget') { handleMsg({ t: 'pair', st: 'forgotten', robot: '90:70:69:14:D4:38' }); return; }
+  if (c !== 'run') { handleMsg({ t: 'ack', m: cmd }); return; }
+  const ids = a && a !== 'all' ? [a] : TESTS.map((t) => t[0]);
+  const fake = { adc: ['PASS', 'mux switches channels: X 509, Y 518, battery 845'], centre: ['PASS', 'centre X 509, Y 518, noise 6 counts'],
+    joyrange: ['PASS', 'X 14..1012, Y 31..1009'], joydir: ['PASS', 'UP moved Y+, RIGHT moved X+, as the robot expects'],
+    buttons: ['PASS', 'front, bottom and stick press all seen'], battery: ['WARN', 'raw 845 = 2.64 V at A0 (divider not set in the testbench yet)'],
+    motor: ['CHECK', 'confirm you felt a short buzz, a double buzz and a soft swell'], radio: ['PASS', 'robot 90:70:69:14:D4:38 answered 40 of 40 packets'] };
+  if (ids.length > 1) handleMsg({ t: 'start', n: TESTS.length });
+  let i = 0;
+  const step = () => {
+    if (i >= ids.length) {
+      if (ids.length > 1) { const s = { pass: 0, fail: 0, warn: 0, check: 0 }; ids.forEach((id) => s[fake[id][0].toLowerCase()]++); handleMsg({ t: 'done', ...s, secs: 52 }); }
+      else handleMsg({ t: 'end', id: ids[0] });
+      return;
+    }
+    const id = ids[i];
+    handleMsg({ t: 'test', id, title: testName(id) });
+    state.demoRun = setTimeout(() => { handleLine(`RESULT ${id.padEnd(9)} ${fake[id][0].padEnd(5)} ${fake[id][1]}`); handleMsg({ t: 'res', id, st: fake[id][0], d: fake[id][1] }); i++; step(); }, 600);
+  };
+  step();
+}
+
+// ------------------------------------------------------------ wiring
+buildTests(); buildRemote(); showPair();
+$('btnConnect').onclick = () => (state.connected && !state.demo ? disconnect() : connect());
+$('btnReset').onclick = restart;
+$('btnDemo').onclick = startDemo;
+$('btnRunAll').onclick = () => send('run');
+$('liveToggle').onchange = (e) => send('live ' + (e.target.checked ? 1 : 0));
+$('linkToggle').onchange = (e) => send('link ' + (e.target.checked ? 1 : 0));
+$('btnPing').onclick = () => send('ping');
+$('btnMac').onclick = () => send('mac');
+$('btnPair').onclick = () => send('pair');
+$('btnForget').onclick = () => send('forget');
+document.querySelectorAll('[data-b]').forEach((b) => (b.onclick = () => send('buzz ' + b.dataset.b)));
+$('btnStop').onclick = () => { $('linkToggle').checked = false; send('stop'); };
+for (const id of ['rTop', 'rBot']) {
+  try { const v = localStorage.getItem('elxRemote_' + id); if (v) $(id).value = v; } catch (e) {}
+  $(id).oninput = () => { try { localStorage.setItem('elxRemote_' + id, $(id).value); localStorage.removeItem('elxRemoteBattCal'); } catch (e) {} showBattery(lastBatRaw); };
+}
+$('btnCal').onclick = () => {
+  const v = parseFloat($('meterV').value);
+  if (!(v > 0) || !lastBatRaw) { $('battNote').textContent = 'Connect the remote, measure the battery with a multimeter, type the volts, then press Calibrate.'; return; }
+  try { localStorage.setItem('elxRemoteBattCal', String(v / lastBatRaw)); } catch (e) {}
+  showBattery(lastBatRaw);
+  addLog(`battery calibrated: ${v} V = raw ${lastBatRaw} (factor ${(v / lastBatRaw).toFixed(5)})`, 'me');
+};
+$('btnSave').onclick = () => {
+  const name = 'remote_testbench_' + new Date().toISOString().replace(/[-:]/g, '').replace('T', '_').slice(0, 15) + '.log';
+  const blob = new Blob([logLines.join('\r\n') + '\r\n'], { type: 'text/plain' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href);
+};
+setInterval(() => { if (state.connected && !state.demo && lastLive && performance.now() - lastLive > 3000) $('connText').textContent = 'Connected, but no live data. Is the remote testbench flashed?'; else if (state.connected && !state.demo) $('connText').textContent = 'Connected'; }, 1000);
+if (new URLSearchParams(location.search).has('demo')) startDemo();
+</script>
+</body>
+</html>

@@ -4,3 +4,10 @@
 .vscode/launch.json
 .vscode/ipch
 .idx/
+# Factory tools and logs
+logs/
+testbench/build/
+testbench/sdkconfig
+testbench/sdkconfig.old
+testbench/managed_components/
+testbench/dependencies.lock
