@@ -33,6 +33,9 @@ void RobotController::update(const SensorSnapshot &sensors, bool batteryLow)
             pGameManager->update(sensors);
         }
         break;
+    case TopLevelState::BLOCKS:
+        // The block engine (src/blocks) drives motors, OLED, LEDs and buzzer.
+        break;
     }
 }
 
@@ -48,6 +51,16 @@ void RobotController::stopAllMotion()
 
 void RobotController::onOwnershipChanged(InputSource previousOwner, InputSource newOwner)
 {
+    // A block program keeps running when the app or the remote comes or goes;
+    // Blocks mode ends itself (src/blocks/blocks.cpp).
+    if (currentState.mode == TopLevelState::BLOCKS)
+    {
+        currentState.activeOwner = newOwner;
+        if (newOwner == InputSource::BLE && pLocalMenu)
+            pLocalMenu->reset();
+        return;
+    }
+
     // 1. Invalidate previous joystick state & stop motion immediately for safety
     stopAllMotion();
 
@@ -81,6 +94,30 @@ void RobotController::onOwnershipChanged(InputSource previousOwner, InputSource 
         // ESP-NOW connection goes to IDLE so the menu takes over
         transitionToState(TopLevelState::IDLE);
     }
+}
+
+void RobotController::enterBlocks()
+{
+    if (pBuzzer)
+        pBuzzer->stop();
+    transitionToState(TopLevelState::BLOCKS); // aborts a running game
+    stopAllMotion();
+}
+
+void RobotController::exitBlocks()
+{
+    if (currentState.mode != TopLevelState::BLOCKS)
+        return;
+    stopAllMotion();
+    transitionToState(TopLevelState::IDLE);
+}
+
+void RobotController::goIdle()
+{
+    stopAllMotion();
+    if (pBuzzer)
+        pBuzzer->stop();
+    transitionToState(TopLevelState::IDLE);
 }
 
 void RobotController::transitionToState(TopLevelState newState)
@@ -185,6 +222,10 @@ void RobotController::handleCommand(const RobotCommand &cmd)
 
 void RobotController::handleInputEvent(const InputEvent &event)
 {
+    // In Blocks mode the joystick and buttons belong to the block program.
+    if (currentState.mode == TopLevelState::BLOCKS)
+        return;
+
     if (currentState.mode == TopLevelState::GAME && pGameManager)
     {
         pGameManager->handleInput(event);

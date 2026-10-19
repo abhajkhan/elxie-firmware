@@ -197,7 +197,7 @@ bool BleProtocol::parseIncomingLine(const String &line, RobotCommand &cmdOut, In
     return true; // Valid JSON parsed even if command is unmapped/informational
 }
 
-String BleProtocol::serializeDeviceInfo(const char *msgId, const char *macAddress, const char *deviceName, const char *firmwareVersion, bool bleConnected, bool remoteConnected, bool oledPresent, bool mpuPresent)
+String BleProtocol::serializeDeviceInfo(const char *msgId, const char *macAddress, const char *deviceName, const char *firmwareVersion, bool bleConnected, bool remoteConnected, bool oledPresent, bool mpuPresent, const char *remoteMac, bool remotePaired)
 {
     JsonDocument doc;
     doc["v"] = 1;
@@ -213,6 +213,11 @@ String BleProtocol::serializeDeviceInfo(const char *msgId, const char *macAddres
     payload["model"] = "ESP32-S3 N16R8";
     payload["firmware"] = firmwareVersion ? firmwareVersion : "1.0.0";
     payload["protocolVersion"] = 1;
+    if (remoteMac)
+    {
+        payload["remoteMac"] = remoteMac;       // Stage 5: the hand remote this robot listens to
+        payload["remotePaired"] = remotePaired; // false = BoardConfig default, never paired
+    }
 
     JsonObject caps = payload["capabilities"].to<JsonObject>();
     caps["ble"] = bleConnected;

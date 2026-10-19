@@ -29,6 +29,7 @@ public:
     // BLEServerCallbacks overrides
     void onConnect(BLEServer *server) override;
     void onDisconnect(BLEServer *server) override;
+    void onMtuChanged(BLEServer *server, esp_ble_gatts_cb_param_t *param) override;
 
     // BLECharacteristicCallbacks overrides
     void onWrite(BLECharacteristic *characteristic) override;

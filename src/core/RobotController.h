@@ -26,6 +26,11 @@ public:
 
     const RobotState &getState() const { return currentState; }
 
+    // Elxie Blocks (src/blocks/blocks.cpp)
+    void enterBlocks();
+    void exitBlocks();
+    void goIdle(); // remote pairing: end RC / games and stop
+
 private:
     void transitionToState(TopLevelState newState);
     void stopAllMotion();
