@@ -1,0 +1,17 @@
+; Event hat blocks: edge-triggered, ignored while the same script still runs.
+.name "Pet me"
+.string hi "Hi!"
+.script start
+    push str.hi
+    sys show_text
+.script touched head
+    push emotion.happy
+    sys react
+.script obstacle 10
+    sys stop_motors
+    push emotion.scared
+    sys react
+    push drive.backward
+    push 40
+    push 0.5
+    sys drive_timed

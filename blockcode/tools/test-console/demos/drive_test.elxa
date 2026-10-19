@@ -1,0 +1,19 @@
+; Lift the robot or put it on the floor: forward 1 s, back 1 s, turn left 90, right 90
+.name "Drive test"
+.script start
+    push drive.forward
+    push 40
+    push 1
+    sys drive_timed
+    push drive.backward
+    push 40
+    push 1
+    sys drive_timed
+    push turn.left
+    push 90
+    sys turn_degrees
+    push turn.right
+    push 90
+    sys turn_degrees
+    push sound.levelup
+    sys play_sound

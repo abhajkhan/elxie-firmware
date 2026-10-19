@@ -1,0 +1,12 @@
+loaded 'Square dance': 1 scripts, 0 vars, 35 code bytes
+[     0] program start
+[     0] drive_timed(1, 50, 1)
+[  1000] turn_degrees(2, 90)
+[  1510] drive_timed(1, 50, 1)
+[  2510] turn_degrees(2, 90)
+[  3020] drive_timed(1, 50, 1)
+[  4020] turn_degrees(2, 90)
+[  4530] drive_timed(1, 50, 1)
+[  5530] turn_degrees(2, 90)
+[  6040] react(1)
+[  7240] program stop

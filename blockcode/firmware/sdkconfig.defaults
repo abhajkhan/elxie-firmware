@@ -1,0 +1,38 @@
+# Elxie Block Code — ESP-IDF defaults (applied when sdkconfig doesn't exist yet;
+# delete sdkconfig and rebuild after changing this file).
+CONFIG_IDF_TARGET="esp32s3"
+
+# Flash + partitions (fits 4 MB, works on 8/16 MB modules too)
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# 1 kHz tick so the 10 ms control loop and vTaskDelayUntil are exact
+CONFIG_FREERTOS_HZ=1000
+
+# Console + app link on UART0 (GPIO43/44 via the USB-UART chip).
+# GPIO19/20 (native USB) drive motor A on the Elxie board.
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+
+# Bluetooth LE with the NimBLE host
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU=247
+CONFIG_BT_NIMBLE_PINNED_TO_CORE_0=y
+CONFIG_BT_NIMBLE_HOST_TASK_STACK_SIZE=5120
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
+
+# Wi-Fi (ESP-NOW for the remote) + BLE share the radio
+CONFIG_ESP_COEX_SW_COEXIST_ENABLE=y
+
+# Watchdog: a stuck control loop resets the robot (motors stop)
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=3
+
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_COMPILER_CXX_EXCEPTIONS=n
+CONFIG_COMPILER_CXX_RTTI=n

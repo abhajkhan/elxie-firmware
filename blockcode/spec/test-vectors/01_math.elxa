@@ -1,0 +1,42 @@
+; Arithmetic, variables, kid-friendly edge cases
+.name "Math"
+.var a b
+.script start
+    push 7
+    store a
+    push 3
+    store b
+    load a
+    load b
+    add
+    sys show_number        ; 10
+    load a
+    load b
+    mod
+    sys show_number        ; 1
+    push -7
+    push 3
+    mod
+    sys show_number        ; 2  (floored modulo)
+    push 5
+    push 0
+    div
+    sys show_number        ; 0  (divide by zero -> 0)
+    push 2.5
+    round
+    sys show_number        ; 3
+    push 0.1
+    push 0.2
+    add
+    push 0.3
+    eq
+    sys show_number        ; 1  (tolerant equality)
+    push 5
+    change a
+    load a
+    sys show_number        ; 12
+    push 1
+    push 1
+    random
+    sys show_number        ; 1
+    end

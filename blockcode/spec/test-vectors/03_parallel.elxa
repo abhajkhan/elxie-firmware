@@ -1,0 +1,35 @@
+; Two scripts run in parallel: lights blink while the robot drives a square.
+.name "Square party"
+.script start
+    push 4
+sq:
+    dup
+    push 0
+    gt
+    jz sq_end
+    push drive.forward
+    push 50
+    push 1
+    sys drive_timed        ; blocks this script for 1 s
+    push turn.right
+    push 90
+    sys turn_degrees       ; blocks until the gyro says 90 deg
+    push 1
+    sub
+    jmp sq
+sq_end:
+    pop
+    push sound.levelup
+    sys play_sound
+    stop_all
+.script start
+blink:
+    push #FF0000
+    sys lights_all
+    push 0.5
+    wait
+    push #0000FF
+    sys lights_all
+    push 0.5
+    wait
+    jmp blink

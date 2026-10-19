@@ -1,0 +1,6 @@
+; Stack underflow must stop the program cleanly and report script + pc.
+.name "Oops"
+.script start
+    push 1
+    sys show_number
+    add

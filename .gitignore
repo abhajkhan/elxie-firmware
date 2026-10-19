@@ -11,3 +11,16 @@ testbench/sdkconfig
 testbench/sdkconfig.old
 testbench/managed_components/
 testbench/dependencies.lock
+
+# Block Code platform
+blockcode/tests/build/
+blockcode/firmware/.pio/
+blockcode/firmware/build/
+blockcode/firmware/sdkconfig
+blockcode/firmware/sdkconfig.old
+blockcode/firmware/managed_components/
+blockcode/firmware/dependencies.lock
+node_modules/
+dist/
+*.elxb
+__pycache__/

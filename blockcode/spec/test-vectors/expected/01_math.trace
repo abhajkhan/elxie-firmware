@@ -1,0 +1,11 @@
+loaded 'Math': 1 scripts, 2 vars, 79 code bytes
+[     0] program start
+[     0] show_number(10)
+[     0] show_number(1)
+[     0] show_number(2)
+[     0] show_number(0)
+[     0] show_number(3)
+[     0] show_number(1)
+[     0] show_number(12)
+[     0] show_number(1)
+[     0] program stop

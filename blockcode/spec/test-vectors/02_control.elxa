@@ -1,0 +1,41 @@
+; repeat N, if/else, repeat-until: the exact patterns the Blockly compiler emits
+.name "Control"
+.var i
+.script start
+    push 3                 ; repeat 3
+rep:
+    dup
+    push 0
+    gt
+    jz rep_end
+        push 1
+        change i
+        load i
+        sys show_number    ; 1, 2, 3 (one per tick: backward jump yields)
+    push 1
+    sub
+    jmp rep
+rep_end:
+    pop
+    load i                 ; if i = 3 then happy else sad
+    push 3
+    eq
+    jz else1
+    push face.happy
+    sys face_show
+    jmp endif1
+else1:
+    push face.sad
+    sys face_show
+endif1:
+until:                     ; repeat until i > 5 { change i by 1 }
+    load i
+    push 5
+    gt
+    jnz until_end
+    push 1
+    change i
+    jmp until
+until_end:
+    load i
+    sys show_number        ; 6

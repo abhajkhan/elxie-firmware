@@ -1,0 +1,40 @@
+; Wander on a table: back off and turn at an edge, turn away from obstacles.
+.name "Table explorer"
+.script start
+    push face.happy
+    sys face_show
+loop:
+    push corner.any
+    sys edge_detected
+    jz no_edge
+    sys stop_motors
+    push emotion.scared
+    sys react
+    push drive.backward
+    push 40
+    push 0.6
+    sys drive_timed
+    push turn.right
+    push 120
+    sys turn_degrees
+    jmp loop
+no_edge:
+    sys distance
+    push 15
+    lt
+    jz clear
+    sys stop_motors
+    push face.surprised
+    sys face_show
+    push turn.left
+    push 90
+    sys turn_degrees
+    push face.happy
+    sys face_show
+    jmp loop
+clear:
+    push drive.forward
+    push 35
+    sys drive
+    yield
+    jmp loop

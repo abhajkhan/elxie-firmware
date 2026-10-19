@@ -1,0 +1,32 @@
+; Lists (1-based, Scratch style) and broadcast / "when I receive".
+.name "Lists"
+.list nums
+.script start
+    push 10
+    list_add nums
+    push 20
+    list_add nums
+    push 1
+    push 5
+    list_insert nums       ; [5, 10, 20]
+    list_len nums
+    sys show_number        ; 3
+    push 2
+    list_get nums
+    sys show_number        ; 10
+    push 20
+    list_contains nums
+    sys show_number        ; 1
+    push 1
+    list_delete nums       ; [10, 20]
+    push 1
+    list_get nums
+    sys show_number        ; 10
+    push 7
+    sys broadcast
+    push 0.1
+    wait
+    stop_all
+.script message 7
+    push emotion.love
+    sys react

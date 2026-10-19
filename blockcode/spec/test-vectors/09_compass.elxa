@@ -1,0 +1,12 @@
+; Magnetometer blocks: turn to a compass heading (shortest way), read it, react to a magnet.
+.name "Compass"
+.script start
+    push 30
+    sys turn_to_heading    ; from 300 deg: 90 deg clockwise, not 270 anticlockwise
+    sys heading
+    sys show_number        ; 30
+    sys magnet_strength
+    sys show_number
+.script magnet
+    push emotion.love
+    sys react
