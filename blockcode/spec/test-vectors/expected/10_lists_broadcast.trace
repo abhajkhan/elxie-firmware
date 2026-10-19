@@ -1,0 +1,9 @@
+loaded 'Lists': 2 scripts, 0 vars, 57 code bytes
+lists: 1
+[     0] program start
+[     0] show_number(3)
+[     0] show_number(10)
+[     0] show_number(1)
+[     0] show_number(10)
+[     0] react(7)
+[   100] program stop

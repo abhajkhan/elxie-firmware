@@ -1,0 +1,18 @@
+.name "Light show"
+.script start
+    push effect.rainbow
+    push 0
+    sys light_effect
+    push 3
+    wait
+    push effect.chase
+    push #00C0FF
+    sys light_effect
+    push 3
+    wait
+    push effect.pulse
+    push #FF2080
+    sys light_effect
+    push 3
+    wait
+    sys lights_off

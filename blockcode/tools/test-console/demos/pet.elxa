@@ -1,0 +1,16 @@
+; Touch the TTP223 = happy, shake = dizzy, magnet = love
+.name "Pet me"
+.script start
+    push face.neutral
+    sys face_show
+.script touched
+    push emotion.happy
+    sys react
+.script shaken
+    push face.dizzy
+    sys face_show
+    push sound.sad
+    sys play_sound
+.script magnet
+    push emotion.love
+    sys react

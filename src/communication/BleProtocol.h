@@ -13,7 +13,7 @@ class BleProtocol
 public:
     static bool parseIncomingLine(const String &line, RobotCommand &cmdOut, InputEvent &eventOut, JsonDocument &rawDocOut);
     
-    static String serializeDeviceInfo(const char *msgId, const char *macAddress, const char *deviceName, const char *firmwareVersion, bool bleConnected, bool remoteConnected, bool oledPresent = true, bool mpuPresent = true);
+    static String serializeDeviceInfo(const char *msgId, const char *macAddress, const char *deviceName, const char *firmwareVersion, bool bleConnected, bool remoteConnected, bool oledPresent = true, bool mpuPresent = true, const char *remoteMac = nullptr, bool remotePaired = false);
     static String serializeState(const char *stateStr, const char *ownerStr, bool bleConnected, bool remoteConnected);
     static String serializeHelloAck(const char *msgId, bool accepted, uint8_t protocolVersion = 1);
     static String serializePong(const char *msgId);

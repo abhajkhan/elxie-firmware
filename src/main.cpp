@@ -7,6 +7,7 @@
 #include "core/RobotController.h"
 #include "core/ControllerManager.h"
 #include "core/LocalMenu.h"
+#include "core/RemotePairing.h"
 #include "games/GameManager.h"
 
 #include "hardware/MotorController.h"
@@ -20,6 +21,8 @@
 #include "communication/BleManager.h"
 #include "communication/EspNowProtocol.h"
 #include "communication/EspNowManager.h"
+
+#include "blocks/blocks.h"
 
 // Hardware Abstraction Instances
 static MotorController motorController;
@@ -42,6 +45,7 @@ static EspNowManager &espNowManager = EspNowManager::getInstance();
 void setup()
 {
     Serial.begin(115200);
+    pairing::markBootStart(); // touch held at power-on = pair a remote (checked at the end of setup)
     delay(1000);
 
     Serial.println();
@@ -61,20 +65,33 @@ void setup()
     robotController.begin(&motorController, &ledController, &displayController, &buzzerController, &localMenu, &gameManager);
     controllerManager.begin(&robotController);
 
+    // Elxie Blocks engine (needs the HAL above; adds its BLE service in bleManager.begin)
+    blocks::begin(ledController, displayController, robotController);
+
     // Initialize Communication Modules
     bleManager.begin(DEVICE_NAME);
     espNowManager.begin(REMOTE_MAC);
+
+    // Remote pairing (Stage 5)
+    pairing::begin(displayController, ledController, buzzerController, robotController, bleManager);
+    if (pairing::bootTouchHeld())
+        pairing::start();
 }
 
 void loop()
 {
-    // 1. Update HAL services
-    sensorManager.update();
+    // 1. Update HAL services (in Blocks mode the block engine reads the sensors itself)
+    const bool blocksMode = blocks::active();
+    if (!blocksMode)
+        sensorManager.update();
     batteryManager.service(buzzerController);
 
     // 2. Update Communication services
     bleManager.update();
     espNowManager.update();
+    pairing::pollSerial();
+    pairing::update();
+    const bool pairingMode = pairing::active();
 
     // 3. Centralized Controller Ownership arbitration
     bool bleConnected = bleManager.isConnected();
@@ -82,7 +99,7 @@ void loop()
     controllerManager.update(bleConnected, espNowConnected);
 
     // 4. Update Local OLED Menu if Remote owns control
-    if (!bleConnected && espNowConnected)
+    if (!bleConnected && espNowConnected && !blocksMode && !pairingMode)
     {
         localMenu.update(batteryManager.isLow());
     }
@@ -94,7 +111,22 @@ void loop()
     if (bleManager.getPendingCommand(bleCmd, bleEvent, rawDoc))
     {
         const char *type = rawDoc["type"];
-        if (type && strcmp(type, "hello") == 0)
+        if (type && strcmp(type, "pair_remote") == 0)
+        {
+            const char *msgId = rawDoc["id"] | "";
+            pairing::start();
+            bleManager.sendTx(String("{\"v\":1,\"type\":\"pair_remote_ack\",\"id\":\"") + msgId +
+                              "\",\"payload\":{\"started\":true,\"seconds\":30}}");
+        }
+        else if (type && strcmp(type, "cancel_pair_remote") == 0)
+        {
+            pairing::cancel();
+        }
+        else if (type && strcmp(type, "unpair_remote") == 0)
+        {
+            pairing::forget();
+        }
+        else if (type && strcmp(type, "hello") == 0)
         {
             const char *msgId = rawDoc["id"] | "hello-001";
             uint8_t protoVer = rawDoc["payload"]["protocolVersion"] | rawDoc["v"] | 1;
@@ -121,7 +153,9 @@ void loop()
                 bleConnected,
                 espNowConnected,
                 sensorManager.isOledPresent(),
-                sensorManager.isMpu6050Present());
+                sensorManager.isMpu6050Present(),
+                pairing::remoteMacString().c_str(),
+                espNowManager.hasStoredRemote());
             Serial.printf("[Event] 'device_info_request' received (id: %s). Sending device_info response.\n", msgId);
             bleManager.sendTx(devInfoMsg);
         }
@@ -191,7 +225,7 @@ void loop()
     InputEvent espNowEvent;
     if (espNowManager.getLatestInputEvent(espNowEvent))
     {
-        if (controllerManager.getActiveOwner() == InputSource::ESP_NOW)
+        if (controllerManager.getActiveOwner() == InputSource::ESP_NOW && !blocksMode && !pairingMode)
         {
             localMenu.handleInput(espNowEvent);
         }
@@ -199,7 +233,11 @@ void loop()
     }
 
     // 7. Update Robot Controller state machine
-    robotController.update(sensorManager.getSnapshot(), batteryManager.isLow());
+    if (!pairingMode) // the pairing screen owns the OLED meanwhile
+        robotController.update(sensorManager.getSnapshot(), batteryManager.isLow());
+
+    // 7b. Elxie Blocks: Blocks BLE service, and the block engine while in Blocks mode
+    blocks::loop();
 
     // 8. Send live telemetry to mobile if BLE is connected and robot is in RC or GAME mode
     static unsigned long lastTelemetryMs = 0;

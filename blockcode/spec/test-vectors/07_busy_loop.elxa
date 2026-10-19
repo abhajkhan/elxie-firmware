@@ -1,0 +1,14 @@
+; A kid's empty "forever" loop must not starve other scripts or freeze the robot.
+.name "Busy"
+.var n
+.script start
+spin:
+    push 1
+    change n
+    jmp spin               ; backward jump = yield: one iteration per tick
+.script start
+    push 0.1
+    wait
+    load n
+    sys show_number        ; ~10 iterations in 100 ms, not millions
+    stop_all

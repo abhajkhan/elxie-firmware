@@ -1,4 +1,5 @@
 #include "BleManager.h"
+#include "../blocks/blocks.h"
 
 #define NUS_SERVICE_UUID "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 #define NUS_CHAR_RX_UUID "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
@@ -25,9 +26,13 @@ void BleManager::begin(const char *deviceName)
 
     pService->start();
 
+    // Elxie Blocks VM service on the same connection (src/blocks/ble_transport.cpp)
+    blocks::attachBle(pServer);
+
     BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(NUS_SERVICE_UUID);
     pAdvertising->setScanResponse(true);
+    blocks::configureAdvertising(pAdvertising, deviceName);
     pAdvertising->setMinPreferred(0x06);
     pAdvertising->setMinPreferred(0x12);
     BLEDevice::startAdvertising();
@@ -51,7 +56,13 @@ void BleManager::onDisconnect(BLEServer *server)
     rxLineBuffer = "";
     havePendingLine = false;
     Serial.println("BLE Client disconnected.");
+    blocks::onBleDisconnect();
     BLEDevice::startAdvertising();
+}
+
+void BleManager::onMtuChanged(BLEServer *server, esp_ble_gatts_cb_param_t *param)
+{
+    blocks::onBleMtu(param->mtu.mtu);
 }
 
 void BleManager::onWrite(BLECharacteristic *characteristic)

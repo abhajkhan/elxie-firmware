@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "EspNowProtocol.h"
+#include "ElxiePairingProtocol.h"
 #include "../core/InputEvent.h"
 
 class EspNowManager
@@ -27,11 +28,28 @@ public:
     bool getLatestLegacyCommand(LegacyRemoteCommandPacket &packetOut);
     bool getLatestInputEvent(InputEvent &eventOut);
 
+    // ---- Remote pairing (Stage 5). The paired remote's MAC is kept in flash (NVS);
+    // with nothing stored, the MAC given to begin() (BoardConfig REMOTE_MAC) is used.
+    enum class PairResult : uint8_t { NONE, PAIRED, TIMEOUT, CANCELLED };
+    void startPairing(uint32_t durationMs = 30000);
+    void stopPairing();                       // cancel
+    bool isPairing() const { return pairing; }
+    uint32_t pairingMsLeft() const;
+    bool takePairResult(PairResult &out);     // true once when pairing ends
+    void forgetRemote();                      // back to the BoardConfig default
+    const uint8_t *getPeerMac() const { return peerMac; }
+    bool hasStoredRemote() const { return storedRemote; }
+    static void macToString(const uint8_t *mac, char *out);  // "AA:BB:CC:DD:EE:FF"
+    // Latest packet without consuming it (Elxie Blocks reads the remote too).
+    bool peekLegacyCommand(LegacyRemoteCommandPacket &packetOut);
+
     // Static callback wrapper for ESP-IDF/Arduino C callback signature
     static void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int len);
 
 private:
     EspNowManager() = default;
+    void setPeer(const uint8_t *mac);
+    void sendBeacon();
 
     uint8_t peerMac[6] = {0x18, 0xfe, 0x34, 0xf5, 0xe8, 0x66};
     bool initialized = false;
@@ -41,6 +59,17 @@ private:
 
     LegacyRemoteCommandPacket latestLegacyCmd = {0, 0, 0, 0, 0};
     portMUX_TYPE dataMux = portMUX_INITIALIZER_UNLOCKED;
+
+    uint8_t defaultMac[6] = {0};
+    bool storedRemote = false;
+    volatile bool pairing = false;
+    uint32_t pairingEndMs = 0;
+    uint32_t lastBeaconMs = 0;
+    volatile bool pairRequestSeen = false;
+    volatile bool resendConfirm = false; // paired remote missed our confirm: send it again
+    uint8_t pairCandidate[6] = {0};
+    PairResult pairResult = PairResult::NONE;
+    bool pairResultPending = false;
 };
 
 #endif // ESP_NOW_MANAGER_H

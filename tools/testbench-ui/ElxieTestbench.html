@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elxie Testbench</title>
+<style>
+/* Elxie testbench dashboard: the robot drawn from above, every sensor where it really sits. */
+:root{
+  --bg:#e8ecf0; --panel:#f8fafb; --ink:#1b2430; --mute:#5d6b7a; --line:#cfd7df;
+  --elx:#ff7a1a; --body:#dfe5eb; --bodyline:#9aa8b6;
+  --pass:#1f9d55; --fail:#d63b3b; --warn:#c98a00; --check:#7a5af8; --idle:#a3afbb;
+  --ir-lo:#f4f7fa; --ir-hi:#1b2430;
+  --radius-sm:6px; --radius-lg:14px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141a21; --panel:#1c242d; --ink:#e6ecf2; --mute:#94a3b3; --line:#2e3a46;
+  --body:#24303b; --bodyline:#4a5a6a; --ir-lo:#e9eef3; --ir-hi:#0c1116; --idle:#4f5d6b;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:3px solid var(--elx);outline-offset:2px}
+
+header{display:flex;align-items:center;gap:12px;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:20px;margin:0 8px 0 0;font-weight:800;letter-spacing:-.01em}
+header h1 b{color:var(--elx)}
+.conn{display:flex;align-items:center;gap:8px;color:var(--mute);font-size:14px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--idle);flex:none}
+.dot.on{background:var(--pass);box-shadow:0 0 0 4px color-mix(in srgb,var(--pass) 25%,transparent)}
+.spacer{flex:1}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:var(--radius-sm);padding:7px 14px;cursor:pointer;min-height:38px}
+.btn:hover{border-color:var(--bodyline)}
+.btn.primary{background:var(--elx);border-color:var(--elx);color:#fff;font-weight:700}
+.btn.stop{background:var(--fail);border-color:var(--fail);color:#fff;font-weight:700}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+#banner{display:flex;align-items:center;gap:14px;padding:12px 18px;font-size:18px;font-weight:700;background:var(--ink);color:var(--bg);min-height:52px}
+#banner .step{font-size:13px;font-weight:600;opacity:.75;white-space:nowrap}
+#banner.ask{background:var(--elx);color:#fff}
+#bar{height:4px;background:var(--line)} #bar i{display:block;height:100%;width:0;background:var(--elx);transition:width .3s}
+
+main{display:grid;grid-template-columns:300px minmax(380px,1fr) 330px;gap:16px;padding:16px 18px;align-items:start}
+@media (max-width:1180px){main{grid-template-columns:300px 1fr}.instruments{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}}
+@media (max-width:760px){main{grid-template-columns:1fr;padding:12px}}
+section.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);padding:14px 16px}
+h2{font-size:15px;margin:0 0 10px;font-weight:750}
+.sub{color:var(--mute);font-size:13px}
+
+/* test sequence */
+#tests{list-style:none;margin:0;padding:0;counter-reset:t}
+#tests li{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:start;padding:8px 0;border-top:1px solid var(--line)}
+#tests li:first-child{border-top:0}
+#tests li .n{counter-increment:t;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:var(--line);color:var(--mute)}
+#tests li .n::before{content:counter(t)}
+#tests li.PASS .n{background:var(--pass);color:#fff} #tests li.FAIL .n{background:var(--fail);color:#fff}
+#tests li.WARN .n{background:var(--warn);color:#fff} #tests li.CHECK .n{background:var(--check);color:#fff}
+#tests li.running .n{background:var(--elx);color:#fff;animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--elx) 30%,transparent)}}
+@media (prefers-reduced-motion:reduce){#tests li.running .n{animation:none}}
+#tests .name{font-weight:650}
+#tests .st{font-size:12px;font-weight:800;margin-left:6px}
+#tests li.PASS .st{color:var(--pass)} #tests li.FAIL .st{color:var(--fail)} #tests li.WARN .st{color:var(--warn)} #tests li.CHECK .st{color:var(--check)}
+#tests .d{font-size:13px;color:var(--mute);word-break:break-word}
+#tests .run1{border:1px solid var(--line);background:none;border-radius:var(--radius-sm);padding:2px 9px;cursor:pointer;font-size:13px;min-height:30px}
+.summary{display:flex;gap:6px;margin:12px 0 0;flex-wrap:wrap}
+.chip{border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;background:var(--line)}
+.chip.p{background:var(--pass);color:#fff}.chip.f{background:var(--fail);color:#fff}.chip.w{background:var(--warn);color:#fff}.chip.c{background:var(--check);color:#fff}
+
+/* robot map */
+.mapwrap{position:relative}
+#robot{width:100%;height:auto;display:block;max-height:640px}
+#robot text{font-family:inherit;fill:var(--mute);font-size:11px}
+#robot .val{fill:var(--ink);font-size:11px;font-variant-numeric:tabular-nums;font-weight:650}
+#robot .stuck{fill:var(--fail);font-weight:800}
+.legend{display:flex;gap:16px;align-items:center;color:var(--mute);font-size:12px;margin-top:6px;flex-wrap:wrap}
+.legend .grad{width:90px;height:10px;border-radius:3px;background:linear-gradient(90deg,var(--ir-lo),var(--ir-hi));border:1px solid var(--line)}
+
+/* instruments */
+.instruments{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;gap:14px;align-items:center}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:13px}
+.kv span:nth-child(odd){color:var(--mute)}
+.big{font-size:30px;font-weight:800;line-height:1}
+.meter{height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:8px}
+.meter i{display:block;height:100%;width:0;background:var(--pass);transition:width .2s}
+.ctl{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.ctl .btn{padding:6px 4px;font-size:13px}
+label.inl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute);margin-top:8px}
+input[type=range]{flex:1;accent-color:var(--elx)}
+.pill{display:inline-block;min-width:44px;text-align:center;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:700;background:var(--line);color:var(--mute)}
+.pill.on{background:var(--elx);color:#fff}
+
+/* log */
+.logpanel{margin:0 18px 18px}
+#log{height:220px;overflow:auto;background:#0f1419;color:#d8dee6;border-radius:var(--radius-sm);padding:8px 10px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap}
+#log .PASS{color:#5ee08f} #log .FAIL{color:#ff8a8a} #log .WARN{color:#ffd166} #log .CHECK{color:#c3b2ff} #log .ask{color:#ffb070;font-weight:700} #log .me{color:#8fd3ff}
+.hint{color:var(--mute);font-size:13px;margin:8px 0 0}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1><b>Elxie</b> testbench</h1>
+  <div class="conn"><span class="dot" id="dot"></span><span id="connText">Not connected</span></div>
+  <div class="spacer"></div>
+  <button class="btn primary" id="btnConnect">Connect Elxie</button>
+  <button class="btn" id="btnReset" disabled title="Restart Elxie (the full test run starts again)">Restart Elxie</button>
+  <button class="btn" id="btnDemo" title="Show the dashboard with made-up data, no robot needed">Demo</button>
+  <button class="btn" id="btnSave" title="Download everything Elxie printed this session">Save log</button>
+</header>
+<div id="banner"><span class="step" id="stepText">Ready</span><span id="askText">Plug Elxie into USB, then press Connect Elxie.</span></div>
+<div id="bar"><i id="barFill"></i></div>
+
+<main>
+  <section class="panel" aria-labelledby="hTests">
+    <div class="row" style="justify-content:space-between;margin-bottom:6px">
+      <h2 id="hTests" style="margin:0">Test sequence</h2>
+      <button class="btn primary" id="btnRunAll" disabled style="white-space:nowrap">Run all tests</button>
+    </div>
+    <ol id="tests"></ol>
+    <div class="summary" id="summary"></div>
+  </section>
+
+  <section class="panel mapwrap" aria-labelledby="hMap">
+    <div class="row" style="justify-content:space-between">
+      <h2 id="hMap" style="margin:0">Live sensors</h2>
+      <label class="inl" style="margin:0"><input type="checkbox" id="liveToggle" checked> Stream live data</label>
+    </div>
+    <svg id="robot" viewBox="0 0 440 580" role="img" aria-label="Elxie seen from above with live sensor readings"></svg>
+    <div class="legend"><span>IR raw 0</span><span class="grad"></span><span>4095</span><span>Darker means less light reflected: a dark surface, or nothing below.</span></div>
+  </section>
+
+  <div class="instruments">
+    <section class="panel" aria-labelledby="hTilt">
+      <h2 id="hTilt">Tilt and motion</h2>
+      <div class="row">
+        <svg width="96" height="96" viewBox="-50 -50 100 100" aria-hidden="true">
+          <clipPath id="hc"><circle r="46"/></clipPath>
+          <g clip-path="url(#hc)"><g id="horizon"><rect x="-120" y="-120" width="240" height="120" fill="#7fb6e6"/><rect x="-120" y="0" width="240" height="120" fill="#b08a5c"/><line x1="-120" x2="120" stroke="#fff" stroke-width="2"/></g></g>
+          <circle r="46" fill="none" stroke="var(--bodyline)" stroke-width="2"/>
+          <path d="M-22 0h14l4 6 4-6h14" stroke="var(--elx)" stroke-width="3" fill="none"/>
+        </svg>
+        <div class="kv num" id="imuKv"><span>Pitch</span><span>–</span></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hCompass">
+      <h2 id="hCompass">Compass</h2>
+      <div class="row">
+        <svg width="96" height="96" viewBox="-50 -50 100 100" aria-hidden="true">
+          <circle r="46" fill="none" stroke="var(--bodyline)" stroke-width="2"/>
+          <text y="-34" text-anchor="middle" font-size="11" fill="var(--mute)">N</text>
+          <g id="needle"><path d="M0 -36 L6 0 L0 6 L-6 0Z" fill="var(--fail)"/><path d="M0 36 L6 0 L-6 0Z" fill="var(--idle)"/></g>
+        </svg>
+        <div class="kv num" id="magKv"><span>Heading</span><span>–</span></div>
+      </div>
+      <p class="hint">Raw, uncalibrated heading: use it to check the needle turns as Elxie turns.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="hBatt">
+      <h2 id="hBatt">Battery and touch</h2>
+      <div class="row" style="justify-content:space-between">
+        <div><span class="big num" id="battV">–</span> <span class="sub">volts</span></div>
+        <div style="text-align:right"><span class="sub">Touch pad</span><br><span class="pill" id="touchPill">off</span></div>
+      </div>
+      <div class="meter"><i id="battBar"></i></div>
+      <div class="sub num" id="battPct" style="margin-top:4px">–</div>
+    </section>
+
+    <section class="panel" aria-labelledby="hRemote">
+      <h2 id="hRemote">Remote</h2>
+      <div class="row">
+        <svg width="96" height="96" viewBox="-50 -50 100 100" aria-hidden="true">
+          <circle r="46" fill="none" stroke="var(--bodyline)" stroke-width="2"/>
+          <line x1="-46" x2="46" stroke="var(--line)"/><line y1="-46" y2="46" stroke="var(--line)"/>
+          <circle id="joyDot" r="8" fill="var(--elx)"/>
+        </svg>
+        <div>
+          <div style="display:flex;gap:6px;margin-bottom:8px"><span class="pill" id="bA">A</span><span class="pill" id="bB">B</span><span class="pill" id="bS">stick</span></div>
+          <div class="kv num" id="remKv"><span>Packets</span><span>–</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hCtl">
+      <h2 id="hCtl">Try the outputs</h2>
+      <div class="sub">Lift the wheels first. Every motor button runs for 1 second.</div>
+      <label class="inl">Speed <input type="range" id="spd" min="20" max="100" value="50"><span class="num" id="spdV">50 %</span></label>
+      <div class="ctl">
+        <button class="btn" data-m="1,0">Left fwd</button><button class="btn" data-m="1,1">Both fwd</button><button class="btn" data-m="0,1">Right fwd</button>
+        <button class="btn" data-m="-1,0">Left back</button><button class="btn" data-m="-1,-1">Both back</button><button class="btn" data-m="0,-1">Right back</button>
+      </div>
+      <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+        <input type="color" id="ledColor" value="#00a0ff" aria-label="Light colour" style="width:44px;height:38px;border:0;background:none;padding:0">
+        <button class="btn" id="btnLed">Set lights</button>
+        <button class="btn" id="btnLedOff">Lights off</button>
+      </div>
+      <div class="row" style="margin-top:8px;gap:8px">
+        <label class="inl" style="margin:0">Tone <input type="number" id="hz" value="1000" min="50" max="8000" step="50" style="width:84px" class="btn"> Hz</label>
+        <button class="btn" id="btnBuzz">Beep</button>
+        <div class="spacer"></div>
+        <button class="btn stop" id="btnStop">Stop all</button>
+      </div>
+      <div class="sub" id="ackText" style="margin-top:8px">&nbsp;</div>
+    </section>
+  </div>
+</main>
+
+<section class="panel logpanel" aria-labelledby="hLog">
+  <div class="row" style="justify-content:space-between;margin-bottom:8px">
+    <h2 id="hLog" style="margin:0">Log</h2>
+    <label class="inl" style="margin:0"><input type="checkbox" id="showData"> Show data lines</label>
+  </div>
+  <div id="log" aria-live="off"></div>
+</section>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const TESTS = [
+  ['i2c', 'I2C bus', 'IMU, compass and screen answer'],
+  ['oled', 'Screen', 'white, text, checkerboard'],
+  ['imu', 'Motion sensor', 'gravity and gyro at rest'],
+  ['compass', 'Compass', 'chip answers, field normal'],
+  ['ir', 'IR sensors', '16 channels read and react'],
+  ['ultrasonic', 'Distance sensor', 'echoes come back'],
+  ['touch', 'Touch pad', 'a press is seen'],
+  ['battery', 'Battery', '3.0 to 4.4 V'],
+  ['buzzer', 'Buzzer', 'plays a scale'],
+  ['lights', 'Lights', 'all 30 LEDs, every colour'],
+  ['motors', 'Motors', 'each wheel both ways'],
+  ['remote', 'Remote', 'packets from the paired remote'],
+];
+const state = { results: {}, running: null, runningAll: false, connected: false, demo: null };
+const logLines = [];
+const t0 = performance.now();
+
+// ------------------------------------------------------------ test list
+function buildTests() {
+  const ol = $('tests');
+  ol.innerHTML = '';
+  for (const [id, name, what] of TESTS) {
+    const li = document.createElement('li');
+    li.id = 't_' + id;
+    li.innerHTML = `<span class="n" aria-hidden="true"></span><div><span class="name">${name}</span><span class="st"></span><div class="d">${what}</div></div>` +
+      `<button class="run1" data-id="${id}" disabled aria-label="Run the ${name} test">Run</button>`;
+    ol.appendChild(li);
+  }
+  ol.addEventListener('click', (e) => { const b = e.target.closest('.run1'); if (b) send('run ' + b.dataset.id); });
+}
+function setTest(id, st, detail) {
+  const li = $('t_' + id); if (!li) return;
+  li.className = st || '';
+  li.querySelector('.st').textContent = st && st !== 'running' ? st : '';
+  if (detail !== undefined) li.querySelector('.d').textContent = detail;
+}
+function summary(c) {
+  const s = $('summary');
+  s.innerHTML = c ? `<span class="chip p">${c.pass} pass</span><span class="chip f">${c.fail} fail</span><span class="chip w">${c.warn} warn</span><span class="chip c">${c.check} check</span>` +
+    (c.secs !== undefined ? `<span class="chip">${c.secs} s</span>` : '') : '';
+}
+
+// ------------------------------------------------------------ robot map (SVG)
+const NS = 'http://www.w3.org/2000/svg';
+const LINE_CH = [0, 1, 2, 3, 4, 5, 6, 7];          // IR_LINE_CHANNELS (left -> right)
+const EDGE_CH = { FL: 10, FR: 8, BL: 12, BR: 13 };   // IR_EDGE_CHANNELS
+const CORNER_CH = { FL: 9, FR: 15, BL: 11, BR: 14 }; // IR_DEPTH_CHANNELS
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const map = {};
+function buildRobot() {
+  const svg = $('robot');
+  // body
+  el('rect', { x: 70, y: 110, width: 300, height: 360, rx: 54, fill: 'var(--body)', stroke: 'var(--bodyline)', 'stroke-width': 2 }, svg);
+  // wheels
+  map.wheelL = el('rect', { x: 40, y: 250, width: 26, height: 110, rx: 8, fill: 'var(--idle)' }, svg);
+  map.wheelR = el('rect', { x: 374, y: 250, width: 26, height: 110, rx: 8, fill: 'var(--idle)' }, svg);
+  el('text', { x: 53, y: 378, 'text-anchor': 'middle' }, svg).textContent = 'left';
+  el('text', { x: 387, y: 378, 'text-anchor': 'middle' }, svg).textContent = 'right';
+  // ultrasonic beam + eyes on the front
+  map.beam = el('path', { d: 'M190 108 L120 20 L320 20 L250 108Z', fill: 'var(--elx)', opacity: .12 }, svg);
+  el('rect', { x: 182, y: 100, width: 76, height: 20, rx: 6, fill: '#0f1419' }, svg);
+  el('circle', { cx: 200, cy: 110, r: 7, fill: '#e6ecf2' }, svg); el('circle', { cx: 240, cy: 110, r: 7, fill: '#e6ecf2' }, svg);
+  map.cm = el('text', { x: 220, y: 44, 'text-anchor': 'middle', class: 'val', 'font-size': 18 }, svg); map.cm.textContent = '– cm';
+  el('text', { x: 220, y: 62, 'text-anchor': 'middle' }, svg).textContent = 'distance ahead';
+  // OLED face
+  el('rect', { x: 165, y: 300, width: 110, height: 58, rx: 6, fill: '#0f1419' }, svg);
+  map.face = el('text', { x: 220, y: 334, 'text-anchor': 'middle', fill: 'var(--panel)', 'font-size': 12 }, svg); map.face.textContent = 'screen';
+  map.face.style.fill = '#9fb3c8';
+  // LED ring (30 around the body)
+  map.leds = [];
+  for (let i = 0; i < 30; i++) {
+    const a = (i / 30) * Math.PI * 2 - Math.PI / 2;
+    map.leds.push(el('circle', { cx: 220 + Math.cos(a) * 128, cy: 290 + Math.sin(a) * 160, r: 4.5, fill: 'var(--line)' }, svg));
+  }
+  // line array: 8 bars across the front
+  map.line = [];
+  el('text', { x: 220, y: 150, 'text-anchor': 'middle' }, svg).textContent = 'line sensors 1 → 8';
+  for (let i = 0; i < 8; i++) {
+    const x = 128 + i * 24;
+    const r = el('rect', { x, y: 160, width: 20, height: 54, rx: 4, fill: 'var(--ir-lo)', stroke: 'var(--bodyline)' }, svg);
+    const t = el('text', { x: x + 10, y: i % 2 ? 242 : 228, 'text-anchor': 'middle', class: 'val', 'font-size': 10 }, svg);
+    map.line.push({ r, t, ch: LINE_CH[i] });
+  }
+  // edges (bottom) and corners (outside) at the four corners
+  map.edge = {}; map.corner = {};
+  const pos = { FL: [104, 150, -1, -1], FR: [336, 150, 1, -1], BL: [104, 430, -1, 1], BR: [336, 430, 1, 1] };
+  for (const k of ['FL', 'FR', 'BL', 'BR']) {
+    const [x, y, sx, sy] = pos[k];
+    const er = el('circle', { cx: x, cy: y, r: 14, fill: 'var(--ir-lo)', stroke: 'var(--bodyline)', 'stroke-width': 1.5 }, svg);
+    const et = el('text', { x, y: y - 21, 'text-anchor': 'middle', class: 'val', 'font-size': 10 }, svg);
+    map.edge[k] = { r: er, t: et, ch: EDGE_CH[k], k: 'edge ' + k };
+    const cx = x + sx * 46, cy = y + sy * 40;
+    const cr = el('path', { d: `M${cx} ${cy} m-12 0 a12 12 0 1 0 24 0 a12 12 0 1 0 -24 0`, fill: 'var(--ir-lo)', stroke: 'var(--bodyline)', 'stroke-dasharray': '3 2', 'stroke-width': 1.5 }, svg);
+    const ct = el('text', { x: cx, y: cy + (sy < 0 ? -18 : 28), 'text-anchor': 'middle', class: 'val', 'font-size': 10 }, svg);
+    map.corner[k] = { r: cr, t: ct, ch: CORNER_CH[k], k: 'corner ' + k };
+  }
+  el('text', { x: 220, y: 560, 'text-anchor': 'middle' }, svg).textContent = 'solid circles are table-edge sensors, dashed are corner sensors';
+  // touch pad on the back
+  map.touch = el('rect', { x: 190, y: 420, width: 60, height: 26, rx: 13, fill: 'var(--line)' }, svg);
+  el('text', { x: 220, y: 437, 'text-anchor': 'middle', 'font-size': 10 }, svg).textContent = 'touch';
+}
+const lerp = (a, b, t) => a + (b - a) * t;
+function irColour(v) { // white (lots of reflection, low raw) to dark (high raw)
+  const t = Math.min(1, Math.max(0, v / 4095));
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const lo = dark ? [233, 238, 243] : [244, 247, 250], hi = dark ? [12, 17, 22] : [27, 36, 48];
+  return `rgb(${lo.map((c, i) => Math.round(lerp(c, hi[i], t))).join(',')})`;
+}
+function setIr(o, v) {
+  o.r.setAttribute('fill', irColour(v));
+  o.t.textContent = o.k ? `${o.k} ${v}` : v;
+  const stuck = v >= 4090 || v <= 5;
+  o.t.setAttribute('class', 'val' + (stuck ? ' stuck' : ''));
+  o.r.setAttribute('stroke', stuck ? 'var(--fail)' : 'var(--bodyline)');
+}
+
+// ------------------------------------------------------------ live data
+let lastLive = 0;
+function onLive(d) {
+  lastLive = performance.now();
+  d.ir.forEach((v, ch) => {
+    for (const o of map.line) if (o.ch === ch) setIr(o, v);
+    for (const k in map.edge) if (map.edge[k].ch === ch) setIr(map.edge[k], v);
+    for (const k in map.corner) if (map.corner[k].ch === ch) setIr(map.corner[k], v);
+  });
+  map.cm.textContent = d.cm > 0 ? d.cm.toFixed(0) + ' cm' : 'no echo';
+  map.beam.setAttribute('opacity', d.cm > 0 ? Math.max(.08, .45 - d.cm / 500) : .05);
+  map.touch.setAttribute('fill', d.touch ? 'var(--elx)' : 'var(--line)');
+  map.wheelL.setAttribute('fill', d.ml ? 'var(--elx)' : 'var(--idle)');
+  map.wheelR.setAttribute('fill', d.mr ? 'var(--elx)' : 'var(--idle)');
+  // tilt
+  $('horizon').setAttribute('transform', `rotate(${-d.roll}) translate(0 ${d.pitch * 0.9})`);
+  $('imuKv').innerHTML = d.imu ? `<span>Pitch</span><span>${d.pitch.toFixed(0)}°</span><span>Roll</span><span>${d.roll.toFixed(0)}°</span>` +
+    `<span>Accel</span><span>${d.a.map((v) => v.toFixed(2)).join(' / ')} g</span><span>Gyro</span><span>${d.g.map((v) => v.toFixed(0)).join(' / ')} °/s</span>`
+    : '<span>IMU</span><span>no reading</span>';
+  // compass
+  $('needle').setAttribute('transform', `rotate(${d.hd})`);
+  $('magKv').innerHTML = d.mag ? `<span>Heading</span><span>${d.hd.toFixed(0)}°</span><span>Field</span><span>${d.field.toFixed(0)}</span><span>x y z</span><span>${d.m.join(' ')}</span>`
+    : '<span>Compass</span><span>no reading</span>';
+  // battery + touch
+  $('battV').textContent = d.bv.toFixed(2);
+  $('battBar').style.width = d.bp + '%';
+  $('battBar').style.background = d.bp < 20 ? 'var(--fail)' : d.bp < 45 ? 'var(--warn)' : 'var(--pass)';
+  $('battPct').textContent = `about ${d.bp.toFixed(0)} %` + (d.bv < 3 ? '. Very low: check the battery, or the divider ratio in board_config.h.' : '');
+  const tp = $('touchPill'); tp.textContent = d.touch ? 'touched' : 'off'; tp.classList.toggle('on', !!d.touch);
+  // remote
+  $('joyDot').setAttribute('cx', d.jx * 0.38); $('joyDot').setAttribute('cy', -d.jy * 0.38);
+  for (const [id, bit] of [['bA', 0], ['bB', 1], ['bS', 2]]) $(id).classList.toggle('on', !!(d.btn & (1 << bit)));
+  $('remKv').innerHTML = `<span>Packets</span><span>${d.rxo} from the paired remote</span><span>Other</span><span>${d.rx - d.rxo}</span>`;
+}
+
+// ------------------------------------------------------------ messages from Elxie
+function handleLine(line) {
+  if (line.startsWith('@')) {
+    let m; try { m = JSON.parse(line.slice(1)); } catch (e) { return; }
+    if ($('showData').checked && m.t !== 'live') addLog(line, 'me');
+    else if ($('showData').checked && m.t === 'live' && Math.random() < 0.1) addLog(line, 'me');
+    handleMsg(m);
+    return;
+  }
+  let cls = '';
+  const r = /^RESULT\s+\S+\s+(PASS|FAIL|WARN|CHECK)/.exec(line) || /^\s+(PASS|FAIL|WARN|CHECK) /.exec(line);
+  if (r) cls = r[1]; else if (line.startsWith('>>>')) cls = 'ask';
+  addLog(line, cls);
+}
+function handleMsg(m) {
+  switch (m.t) {
+    case 'live': onLive(m); if (state.runningAll || state.running) {} break;
+    case 'hello': break;
+    case 'start':
+      state.runningAll = true; state.results = {}; summary(null);
+      for (const [id, , what] of TESTS) setTest(id, '', what);
+      banner('Starting', 'Running all 12 tests. Follow the orange instructions.');
+      progress(0); setBusy(true); break;
+    case 'test': {
+      state.running = m.id; setTest(m.id, 'running');
+      const i = TESTS.findIndex((t) => t[0] === m.id);
+      banner(`Test ${m.n} of 12`, m.title); progress(state.runningAll ? i / TESTS.length : 0); setBusy(true); break;
+    }
+    case 'ask': banner(null, m.m, true); break;
+    case 'res': state.results[m.id] = m.st; setTest(m.id, m.st, m.d); break;
+    case 'end': state.running = null; setBusy(false); banner('Done', `${testName(m.id)} test finished.`); break;
+    case 'done':
+      state.runningAll = false; state.running = null; setBusy(false); progress(1); summary(m);
+      banner('Finished', m.fail ? `${m.fail} test(s) failed. Read the red lines, fix, then run again.` : 'All tests ran. Confirm the purple CHECK items by eye and ear.');
+      break;
+    case 'ack': $('ackText').textContent = 'Elxie: ' + m.m; break;
+    case 'err': $('ackText').textContent = 'Elxie says: ' + m.m; break;
+  }
+}
+const testName = (id) => (TESTS.find((t) => t[0] === id) || [id, id])[1];
+function banner(step, text, ask) {
+  if (step !== null) $('stepText').textContent = step;
+  $('askText').textContent = text;
+  $('banner').classList.toggle('ask', !!ask);
+}
+function progress(f) { $('barFill').style.width = (f * 100).toFixed(0) + '%'; }
+function setBusy(b) {
+  $('btnRunAll').disabled = b || !state.connected;
+  document.querySelectorAll('.run1').forEach((x) => (x.disabled = b || !state.connected));
+}
+function addLog(text, cls) {
+  const ts = ((performance.now() - t0) / 1000).toFixed(1);
+  logLines.push(`[${ts.padStart(6)}s] ${text}`);
+  const box = $('log');
+  const atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+  const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = text; box.appendChild(d);
+  while (box.childNodes.length > 2000) box.removeChild(box.firstChild);
+  if (atEnd) box.scrollTop = box.scrollHeight;
+}
+
+// ------------------------------------------------------------ serial link (Web Serial)
+let port = null, writer = null, reading = false;
+async function connect() {
+  if (!('serial' in navigator)) { banner('Not supported', 'This browser cannot use USB. Open this page in Microsoft Edge or Google Chrome.'); return; }
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200, bufferSize: 65536 });
+    try { await port.setSignals({ dataTerminalReady: false, requestToSend: false }); } catch (e) {}
+  } catch (e) { banner('Not connected', e.message.includes('open') ? 'That port is busy. Close the Test Console, serial monitors or TESTBENCH.bat, then try again.' : 'No port chosen.'); port = null; return; }
+  stopDemo();
+  writer = port.writable.getWriter();
+  state.connected = true; setBusy(false); $('btnReset').disabled = false;
+  $('dot').classList.add('on'); $('connText').textContent = 'Connected';
+  $('btnConnect').textContent = 'Disconnect';
+  banner('Connected', 'Waiting for data from Elxie. If nothing appears, press Restart Elxie.');
+  addLog('--- connected ---', 'me');
+  readLoop();
+}
+async function readLoop() {
+  reading = true;
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (port && port.readable && reading) {
+    const reader = port.readable.getReader();
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i).replace(/\r$/, ''); buf = buf.slice(i + 1); if (line) handleLine(line); }
+      }
+    } catch (e) { addLog('--- read error: ' + e.message, 'FAIL'); break; }
+    finally { reader.releaseLock(); }
+  }
+  if (state.connected) disconnect();
+}
+async function disconnect() {
+  reading = false; state.connected = false;
+  try { if (writer) { writer.releaseLock(); writer = null; } } catch (e) {}
+  try { if (port) await port.close(); } catch (e) {}
+  port = null;
+  $('dot').classList.remove('on'); $('connText').textContent = 'Not connected'; $('btnConnect').textContent = 'Connect Elxie';
+  $('btnReset').disabled = true; setBusy(false);
+  banner('Disconnected', 'Press Connect Elxie to reconnect.');
+}
+async function send(cmd) {
+  if (state.demo) { demoCommand(cmd); return; }
+  if (!writer) { $('ackText').textContent = 'Connect Elxie first.'; return; }
+  addLog('> ' + cmd, 'me');
+  await writer.write(new TextEncoder().encode(cmd + '\n'));
+}
+async function restart() {
+  if (!port) return;
+  addLog('--- restarting Elxie ---', 'me');
+  await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+  await new Promise((r) => setTimeout(r, 120));
+  await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+}
+
+// ------------------------------------------------------------ demo (no robot)
+function startDemo() {
+  if (state.connected) return;
+  if (state.demo) { stopDemo(); return; }
+  $('btnDemo').textContent = 'Stop demo';
+  $('connText').textContent = 'Demo data'; $('dot').classList.add('on');
+  state.connected = true; setBusy(false);
+  let k = 0;
+  state.demo = setInterval(() => {
+    k++;
+    const s = Math.sin(k / 10);
+    const ir = Array.from({ length: 16 }, (_, ch) => ch === 10 ? 4095 : Math.round(2200 + 1500 * Math.sin(k / 8 + ch)));
+    handleMsg({ t: 'live', ms: k * 100, ir, imu: 1, a: [0.05 * s, 0.1 * s, 1.0], g: [s * 3, 0, s * 20], pitch: s * 12, roll: s * 8,
+      mag: 1, m: [569, -120, -800], field: 986, hd: (k * 4) % 360, cm: 60 + 40 * s, touch: k % 40 < 4 ? 1 : 0, bv: 3.86, bp: 62,
+      rx: k, rxo: k, jx: Math.round(80 * Math.cos(k / 7)), jy: Math.round(80 * Math.sin(k / 7)), btn: k % 30 < 5 ? 1 : 0,
+      ml: state.demoMotor ? 50 : 0, mr: state.demoMotor ? 50 : 0 });
+  }, 100);
+}
+function stopDemo() {
+  if (!state.demo) return;
+  clearInterval(state.demo); state.demo = null; clearTimeout(state.demoRun);
+  state.connected = false; setBusy(false);
+  $('btnDemo').textContent = 'Demo'; $('connText').textContent = 'Not connected'; $('dot').classList.remove('on');
+}
+function demoCommand(cmd) {
+  const [c, a] = cmd.split(' ');
+  if (c === 'motor') { state.demoMotor = true; setTimeout(() => (state.demoMotor = false), 1000); }
+  if (c !== 'run') { handleMsg({ t: 'ack', m: cmd }); return; }
+  const ids = a && a !== 'all' ? [a] : TESTS.map((t) => t[0]);
+  const fake = { i2c: ['PASS', '3 device(s): 0x2C 0x3C 0x68'], oled: ['CHECK', 'confirm white / text / checkerboard appeared'], imu: ['PASS', '|a|=1.01 g, gyro offset 1.8 deg/s, upright'],
+    compass: ['PASS', 'id 0x80, field 986 counts'], ir: ['FAIL', '1 channel(s) stuck at 0 or 4095: CH 10'], ultrasonic: ['PASS', '10/10 valid, 106.7..107.6 cm'],
+    touch: ['PASS', 'press detected'], battery: ['PASS', '3.86 V (~62 %)'], buzzer: ['CHECK', 'confirm you heard 8 rising notes and a beep'],
+    lights: ['CHECK', 'confirm red/green/blue/white on all 30'], motors: ['CHECK', 'confirm each wheel spun fwd then back'], remote: ['PASS', '212 packets from the paired remote'] };
+  if (ids.length > 1) handleMsg({ t: 'start', n: 12 });
+  let i = 0;
+  const step = () => {
+    if (i >= ids.length) {
+      if (ids.length > 1) { const c = { pass: 0, fail: 0, warn: 0, check: 0 }; ids.forEach((id) => c[fake[id][0].toLowerCase()]++); handleMsg({ t: 'done', ...c, secs: 44 }); }
+      else handleMsg({ t: 'end', id: ids[0] });
+      return;
+    }
+    const id = ids[i]; const n = TESTS.findIndex((t) => t[0] === id) + 1;
+    handleMsg({ t: 'test', n, id, title: testName(id) });
+    if (id === 'motors') handleMsg({ t: 'ask', m: 'LIFT THE WHEELS off the table. Starting in 3 s' });
+    addLog(`[${String(n).padStart(2, '0')}] ${testName(id)} (demo)`);
+    state.demoRun = setTimeout(() => { handleLine(`RESULT ${id.padEnd(10)} ${fake[id][0].padEnd(5)} ${fake[id][1]}`); handleMsg({ t: 'res', id, st: fake[id][0], d: fake[id][1] }); i++; step(); }, 600);
+  };
+  step();
+}
+
+// ------------------------------------------------------------ wiring
+buildTests(); buildRobot();
+$('btnConnect').onclick = () => (state.connected && !state.demo ? disconnect() : connect());
+$('btnReset').onclick = restart;
+$('btnDemo').onclick = startDemo;
+$('btnRunAll').onclick = () => send('run');
+$('liveToggle').onchange = (e) => send('live ' + (e.target.checked ? 1 : 0));
+$('spd').oninput = (e) => ($('spdV').textContent = e.target.value + ' %');
+document.querySelectorAll('[data-m]').forEach((b) => (b.onclick = () => {
+  const [l, r] = b.dataset.m.split(',').map(Number); const s = +$('spd').value;
+  send(`motor ${l * s} ${r * s} 1000`);
+}));
+$('btnLed').onclick = () => { const h = $('ledColor').value; map.leds.forEach((c) => c.setAttribute('fill', h)); send(`led ${parseInt(h.slice(1, 3), 16)} ${parseInt(h.slice(3, 5), 16)} ${parseInt(h.slice(5, 7), 16)}`); };
+$('btnLedOff').onclick = () => { map.leds.forEach((c) => c.setAttribute('fill', 'var(--line)')); send('led 0 0 0'); };
+$('btnStop').addEventListener('click', () => map.leds.forEach((c) => c.setAttribute('fill', 'var(--line)')));
+$('btnBuzz').onclick = () => send(`buzz ${Math.round(+$('hz').value || 1000)} 300`);
+$('btnStop').onclick = () => send('stop');
+$('btnSave').onclick = () => {
+  const name = 'testbench_' + new Date().toISOString().replace(/[-:]/g, '').replace('T', '_').slice(0, 15) + '.log';
+  const blob = new Blob([logLines.join('\r\n') + '\r\n'], { type: 'text/plain' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href);
+};
+setInterval(() => { if (state.connected && !state.demo && lastLive && performance.now() - lastLive > 3000) $('connText').textContent = 'Connected, but no live data. Is the testbench flashed?'; else if (state.connected && !state.demo) $('connText').textContent = 'Connected'; }, 1000);
+if (new URLSearchParams(location.search).has('demo')) startDemo();
+</script>
+</body>
+</html>

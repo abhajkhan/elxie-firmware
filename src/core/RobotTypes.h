@@ -7,7 +7,8 @@ enum class TopLevelState : uint8_t
 {
     IDLE = 0,
     RC,
-    GAME
+    GAME,
+    BLOCKS // Elxie Blocks owns the robot (src/blocks)
 };
 
 enum class GameId : uint8_t

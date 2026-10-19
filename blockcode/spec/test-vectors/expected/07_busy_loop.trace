@@ -1,0 +1,4 @@
+loaded 'Busy': 2 scripts, 1 vars, 20 code bytes
+[     0] program start
+[   100] show_number(11)
+[   100] program stop

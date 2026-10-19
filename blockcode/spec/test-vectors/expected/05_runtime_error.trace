@@ -1,0 +1,5 @@
+loaded 'Oops': 1 scripts, 0 vars, 6 code bytes
+[     0] program start
+[     0] show_number(1)
+[     0] program stop
+[     0] RUNTIME ERROR 2 in script 0 at pc 4

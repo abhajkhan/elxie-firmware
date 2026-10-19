@@ -1,0 +1,9 @@
+loaded 'Compass': 2 scripts, 0 vars, 18 code bytes
+[     0] program start
+[     0] turn_to_heading(30)
+[   500] heading() -> 30
+[   500] show_number(30)
+[   500] magnet_strength() -> 40
+[   500] show_number(40)
+[  2000] react(7)
+[  4000] (still running at time limit)

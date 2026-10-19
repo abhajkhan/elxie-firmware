@@ -1,0 +1,13 @@
+.name "Hello"
+.string hi "Hello!"
+.script start
+    push face.happy
+    sys face_show
+    push sound.happy
+    sys play_sound
+    push str.hi
+    sys show_text
+    push 1.5
+    wait
+    push emotion.love
+    sys react

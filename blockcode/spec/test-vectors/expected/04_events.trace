@@ -1,0 +1,9 @@
+loaded 'Pet me': 3 scripts, 0 vars, 28 code bytes
+[     0] program start
+[     0] show_text("Hi!")
+[   500] react(1)
+[  2500] react(1)
+[  3000] stop_motors()
+[  3000] react(4)
+[  4200] drive_timed(2, 40, 0.5)
+[  5000] (still running at time limit)

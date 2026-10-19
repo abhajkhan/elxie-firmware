@@ -1,0 +1,23 @@
+; The example from README.md (kept in sync by this test)
+.name "Square dance"
+.script start
+    push 4
+loop:
+    dup
+    push 0
+    gt
+    jz done
+    push drive.forward
+    push 50
+    push 1
+    sys drive_timed      ; drive forward at 50% for 1 s (gyro keeps it straight)
+    push turn.right
+    push 90
+    sys turn_degrees     ; gyro-controlled 90° turn
+    push 1
+    sub
+    jmp loop
+done:
+    pop
+    push emotion.happy
+    sys react

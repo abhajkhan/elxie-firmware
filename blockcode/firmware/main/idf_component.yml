@@ -1,0 +1,5 @@
+## Managed components (downloaded automatically by idf.py on first build)
+dependencies:
+  idf: ">=5.3"
+  espressif/led_strip: "^3.0.0"
+  joltwallet/littlefs: "^1.14.0"
