@@ -43,7 +43,7 @@ New, in `src/blocks/`:
   - `sound` uses `tone()`.
   - `lights` uses LedController's `Adafruit_NeoPixel`.
   - `face` draws with U8g2 into RAM and sends through DisplayController's `Adafruit_SSD1306`.
-  - `motors` uses `analogWrite`. Like the games, motor B is the left wheel and motor A the right wheel.
+  - `motors` uses `analogWrite`. Like the games, motor B is the left wheel and motor A the right wheel. Wheel direction comes from `MOTOR_A_INVERT` / `MOTOR_B_INVERT` in `src/config/BoardConfig.h` (the left motor is reversed on the Oct 2026 robots).
   - `storage` uses FFat at `/ffat/blocks`. The first boot formats the partition.
   - `remote_link` reads the ESP8266 remote's 7-byte packet from `EspNowManager`.
 - `blocks.cpp` is the glue: begin, loop at 100 Hz, and entering and leaving Blocks mode.

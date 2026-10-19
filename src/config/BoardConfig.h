@@ -21,6 +21,13 @@
 #define PIN_BIN1 47
 #define PIN_BIN2 48
 
+// Wheel direction. Motor A = RIGHT wheel, motor B = LEFT wheel.
+// Set to 1 if that wheel turns backwards when driven forward. Used by the games,
+// RC, the pet moves (MotorController) and Elxie Blocks (src/blocks/motors.cpp).
+// Oct 2026 robots: the left motor is wired reversed (Forward made the robot spin left).
+#define MOTOR_A_INVERT 0
+#define MOTOR_B_INVERT 1
+
 constexpr int DEFAULT_SPEED = 180;
 
 // ========================================
