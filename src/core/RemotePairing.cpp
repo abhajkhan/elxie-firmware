@@ -164,6 +164,8 @@ namespace pairing
                 forget();
             else if (!strcmp(serialLine, "cancel"))
                 cancel();
+            else if (blocks::serialCommand(serialLine))
+                ;  // calmag, compass?, tilttest, tilt (Blocks factory checks)
             else if (!strcmp(serialLine, "remote?"))
             {
                 uint8_t me[6];

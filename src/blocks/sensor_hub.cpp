@@ -160,6 +160,11 @@ void SensorHub::readImu(uint32_t dtMs) {
 
   float ax = r[0] / 16384.0f, ay = r[1] / 16384.0f, az = r[2] / 16384.0f;
   s_.accelZ += 0.3f * (az - s_.accelZ);
+  s_.accelX += 0.3f * (ax - s_.accelX);
+  s_.accelY += 0.3f * (ay - s_.accelY);
+#if IMU_SWAP_PITCH_ROLL
+  { float t = ax; ax = ay; ay = t; }  // sensor mounted turned 90 degrees
+#endif
   float gz = r[6] / 65.5f - gyroBias_[2];
   s_.gyroZ = gz * IMU_YAW_SIGN;
   if (fabsf(s_.gyroZ) > 0.5f) s_.yaw += s_.gyroZ * dt;  // small dead band kills drift at rest

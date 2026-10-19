@@ -69,7 +69,20 @@ Small edits to the team's files, each marked with a comment:
 
 Block settings are in `src/blocks/blocks_config.h`. Game settings stay in `src/config/BoardConfig.h`.
 
-The compass is set from the measured log: `MAG_Y_SIGN -1` and `MAG_HEADING_OFFSET 83`. Each robot still needs one "Compass (robot spins)" calibration. It is saved in `/ffat/blocks/magcal.bin`.
+The compass is set from the measured log: `MAG_Y_SIGN -1` and `MAG_HEADING_OFFSET 83`. Each robot still needs one compass calibration, done at the factory with **CALIBRATE_COMPASS.bat** (or "Compass (robot spins)" in the app). It is saved in `/ffat/blocks/magcal.bin` and survives reflashing.
+
+The tilt blocks use `IMU_SWAP_PITCH_ROLL`, `IMU_PITCH_SIGN` and `IMU_ROLL_SIGN`. **TILT_TEST.bat** checks them on a real robot: hold the robot level, then nose down, then right side down, and it prints the right values.
+
+## Factory checks over USB serial (115200)
+
+| Command | What it does |
+|---|---|
+| `calmag` | Compass calibration: the robot spins in place for 6 s, then prints `MAGCAL OK ...` or `MAGCAL FAILED` and saves |
+| `compass?` | Prints `COMPASS found/missing calibrated/not-calibrated` and the stored ranges |
+| `tilttest` | Guided tilt test (level, nose down, right side down, 6 s each). Prints `TILT RESULT IMU_SWAP_PITCH_ROLL .. IMU_PITCH_SIGN .. IMU_ROLL_SIGN .. -> MATCHES/CHANGE blocks_config.h` |
+| `tilt` | Live pitch, roll, raw accel and compass heading, 4 times a second. Send `tilt` again to stop. |
+
+These switch the robot into Blocks mode while they run. Holding remote A + B or the touch pad cancels the compass spin.
 
 ## Remote pairing (Stage 5)
 

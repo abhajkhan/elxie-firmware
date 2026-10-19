@@ -113,3 +113,18 @@ The pins are the same as `REMOTE_espnow.ino`. The battery divider (100 k / 100 k
 2. Plug in **only the robot** over USB and double-click **PAIR_ROBOT_AND_REMOTE.bat**. The robot blinks blue for 30 s.
 3. Hold **FRONT + BOTTOM** on the remote while switching it on.
 4. The window shows `PAIRING_RESULT=OK` and the remote gives a double buzz. Pair one set at a time, so a remote can't pick the wrong robot.
+
+## Compass calibration (once per robot)
+
+1. The robot runs the Home firmware and its battery is switched on (the motors need it).
+2. Plug in **only the robot** over USB and put it on a flat floor, at least 1 m from metal, magnets, speakers and laptops. Leave the cable loose.
+3. Double-click **CALIBRATE_COMPASS.bat** and press Enter. The robot spins in place for 6 s.
+4. The window shows `COMPASS_RESULT=OK` and the robot shows "Compass ready". The calibration is saved on the robot and survives reflashing. If it shows `FAILED`, move away from metal and run it again.
+
+## Tilt test (pitch and roll settings)
+
+Run it on one robot of each hardware build; the result applies to all robots with the same board.
+
+1. Plug in the robot over USB and hold it in your hand.
+2. Double-click **TILT_TEST.bat**, press Enter and follow the prompts (also on the robot's screen): level, then nose down about 45°, then right side down about 45°, 6 s each.
+3. `TILT_RESULT=OK` means the settings are right. `CHANGE` prints the three values to put in `src/blocks/blocks_config.h` (`IMU_SWAP_PITCH_ROLL`, `IMU_PITCH_SIGN`, `IMU_ROLL_SIGN`).
