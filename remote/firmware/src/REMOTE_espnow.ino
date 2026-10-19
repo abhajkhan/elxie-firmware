@@ -8,7 +8,12 @@
  *     OBSTACLE -> short buzz
  *  Local button presses still buzz too (kept from original).
  *
- *  Sends to MAINBOT MAC 90:70:69:14:d4:38
+ *  Sends to the PAIRED robot (saved in EEPROM). Never paired: MAINBOT MAC 90:70:69:14:d4:38.
+ *
+ *  PAIRING (Stage 5): hold the FRONT + BOTTOM buttons while switching the remote on.
+ *  It buzzes twice, then looks for a robot in pairing mode for 30 s (robot: hold its
+ *  touch pad while switching on, or "Pair remote" in the app). Success = heartbeat buzz,
+ *  nothing found = one long buzz (the old pairing is kept).
  *
  *  NOTE: ESP8266 and ESP32 use DIFFERENT esp-now APIs. This is the
  *  ESP8266 side (espnow.h). The struct layout matches the robot's.
@@ -19,7 +24,11 @@
 #include <espnow.h>
 #include <math.h>
 
+#include <EEPROM.h>        // pairing memory (listed here so PlatformIO finds the library)
+#include "ElxiePairing.h"  // robot <-> remote pairing (Stage 5)
+
 // ---- MAINBOT (peer) MAC ----
+// Default robot; replaced at boot by the robot saved in EEPROM by pairing.
 uint8_t MAINBOT_MAC[6] = {0x90, 0x70, 0x69, 0x14, 0xD4, 0x38};
 
 // ---- Mux control pins ----
@@ -31,7 +40,7 @@ const uint8_t MUX_COM = A0;
 // ---- Mux channel assignments ----
 const uint8_t CH_X = 7;
 const uint8_t CH_Y = 5;
-const uint8_t CH_BATT = 6;
+const uint8_t CH_BATT = 4; // battery divider (100k / 100k) on mux channel 4
 
 // ---- Direct digital inputs ----
 const uint8_t PIN_SW = D3;   // Joystick button
@@ -170,6 +179,8 @@ volatile bool alertFlag = false;
 
 void onRecv(uint8_t *mac, uint8_t *data, uint8_t len)
 {
+  if (elxpair::onRecv(mac, data, len))
+    return; // pairing packet
   if (len != sizeof(FeedbackPacket))
     return;
   FeedbackPacket fb;
@@ -209,8 +220,64 @@ void setup()
     }
   }
   esp_now_set_self_role(ESP_NOW_ROLE_COMBO); // send + receive
-  esp_now_add_peer(MAINBOT_MAC, ESP_NOW_ROLE_COMBO, 1, NULL, 0);
   esp_now_register_recv_cb(onRecv);
+
+  // ---- which robot? (saved by pairing, else the default MAINBOT_MAC) ----
+  bool paired = elxpair::loadRobotMac(MAINBOT_MAC);
+  char macStr[18];
+  elxpair::macToString(MAINBOT_MAC, macStr);
+  Serial.printf("Robot: %s (%s)\n", macStr, paired ? "paired" : "default");
+
+  // ---- pairing: FRONT + BOTTOM held at power-on ----
+  if (digitalRead(PIN_BTN1) == LOW && digitalRead(PIN_BTN2) == LOW)
+  {
+    delay(800); // still held? (not a bump)
+    if (digitalRead(PIN_BTN1) == LOW && digitalRead(PIN_BTN2) == LOW)
+    {
+      Serial.println("PAIRING: looking for a robot in pairing mode (30 s)");
+      startHapticShort();
+      while (hapticActive)
+        updateHaptic();
+      delay(150);
+      startHapticShort();
+      while (hapticActive)
+        updateHaptic();
+      uint8_t robot[6];
+      bool ok = elxpair::run(30000, robot, []() {
+        // a tiny tick every second while searching
+        static unsigned long last = 0;
+        if (millis() - last > 1000)
+        {
+          last = millis();
+          startHapticShort();
+        }
+        updateHaptic();
+      });
+      digitalWrite(PIN_MOTOR, LOW);
+      hapticActive = false;
+      if (ok)
+      {
+        memcpy(MAINBOT_MAC, robot, 6);
+        elxpair::macToString(MAINBOT_MAC, macStr);
+        Serial.printf("PAIRED with robot %s\n", macStr);
+        delay(300);
+        startHapticHeartbeat();
+      }
+      else
+      {
+        Serial.println("PAIRING: no robot found, keeping the old one");
+        digitalWrite(PIN_MOTOR, HIGH);
+        delay(1000);
+        digitalWrite(PIN_MOTOR, LOW);
+      }
+      while (hapticActive)
+        updateHaptic();
+      // wait until both buttons are released, so they don't count as presses
+      while (digitalRead(PIN_BTN1) == LOW || digitalRead(PIN_BTN2) == LOW)
+        delay(10);
+    }
+  }
+  esp_now_add_peer(MAINBOT_MAC, ESP_NOW_ROLE_COMBO, 1, NULL, 0);
 
   // boot buzz
   startHapticShort();
