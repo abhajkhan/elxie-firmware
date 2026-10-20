@@ -27,9 +27,9 @@
 #define IMU_I2C_ADDR       0x68
 #define IMU_I2C_ADDR_ALT   0x69    // tried if nothing answers at 0x68 (AD0 pulled high)
 #define IMU_YAW_SIGN       (+1)    // +1 if turning LEFT gives positive gyro Z
-#define IMU_PITCH_SIGN     (+1)    // +1 if nose-down reads as positive pitch
-#define IMU_ROLL_SIGN      (+1)    // +1 if right-side-down reads as positive roll
-#define IMU_SWAP_PITCH_ROLL 0      // 1 if the MPU6050 is mounted turned 90 degrees (pitch and roll swapped)
+#define IMU_PITCH_SIGN     (+1)    // +1 if nose-down reads as positive pitch (TILT_TEST.bat, Oct 2026: +1)
+#define IMU_ROLL_SIGN      (-1)    // +1 if right-side-down reads as positive roll (TILT_TEST.bat, Oct 2026: -1)
+#define IMU_SWAP_PITCH_ROLL 1      // 1 if the MPU6050 is mounted turned 90 degrees (pitch and roll swapped)
                                    // Run TILT_TEST.bat (serial "tilttest") to get these three values.
 #define TILT_EVENT_DEG     25      // "when tilted" threshold
 #define SHAKE_G            0.7f    // |accel - 1g| above this counts as shaking
