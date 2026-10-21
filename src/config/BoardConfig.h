@@ -83,8 +83,13 @@ constexpr uint8_t BOTTOM_CH[4] = {10, 8, 12, 13}; // FL, FR, RL, RR
 #define BATT_R_TOP_OHM 2000.0f    // battery side
 #define BATT_R_BOTTOM_OHM 1000.0f // to GND
 #define BATT_CAL 1.000f           // multimeter / reading, if a robot reads off
-#define BATT_WARN_PCT 35
-#define BATT_CLEAR_PCT 40
+// Percent: straight line on the PIN voltage (pack / 3), set from measurements (Oct 2026):
+//   pin 2.733 V (pack 8.20 V) = 100 %,  pin 2.467 V (pack 7.40 V) = 5 %
+#define BATT_PIN_FULL_MV 2733
+#define BATT_PIN_LOW_MV 2467
+#define BATT_PIN_LOW_PCT 5
+#define BATT_WARN_PCT 30          // low-battery beep at and below this
+#define BATT_CLEAR_PCT 35         // beep stops again above this
 #define BATT_SAMPLE_MS 2000UL
 #define BATT_ALERT_PERIOD_MS 60000UL
 

@@ -375,7 +375,7 @@ static void testBattery() {
   } else if (v < 3.3f || v > 4.35f) {
     result("battery", ST_WARN, "%.2f V (raw %d): outside 3.3-4.35 V, charge or check the divider", v, raw);
   } else {
-    result("battery", ST_PASS, "%.2f V = %u%% (raw %d)", v, elxLiIonPercent((uint16_t)(v * 1000)), raw);
+    result("battery", ST_PASS, "%.2f V = %u%% (raw %d)", v, elxLinearPercent((uint16_t)(v * 1000), 4100, 3650, 0), raw);
   }
 }
 

@@ -137,8 +137,8 @@ The separate tools below do the same steps one at a time.
 
 ## Battery readings
 
-- **Robot** (2 x 18650 in series, pack+ --2k-- GPIO7 --1k-- GND): pack voltage = pin voltage x 3, read with the ESP32's factory-calibrated ADC. Percent comes from a Li-ion curve on the per-cell voltage (pack / 2).
-- **Remote** (one 18650, cell+ --100k-- mux channel 4 --100k-- GND): the D1 Mini's own 220k + 100k on A0 loads the bottom resistor, so cell voltage = A0 voltage x 2.31 (not x 2). The remote sends its voltage and percent to its paired robot every 2 s.
+- **Robot** (2 x 18650 in series, pack+ --2k-- GPIO7 --1k-- GND): pack voltage = pin voltage x 3, read with the ESP32's factory-calibrated ADC. Percent is a straight line on the pin voltage: 2.733 V (pack 8.20 V) = 100 %, 2.467 V (pack 7.40 V) = 5 % (`BATT_PIN_*` in `BoardConfig.h`). The low-battery beep starts at 30 % (pin 2.537 V, pack 7.61 V) and stops above 35 %.
+- **Remote** (one 18650, cell+ --100k-- mux channel 4 --100k-- GND): while channel 4 is being read, the D1 Mini's own 220k + 100k on A0 loads the bottom resistor, so cell voltage = A0 voltage x 2.31 (`A0_LOAD`; a multimeter on channel 4 sees the unloaded half because the mux is mostly on the joystick). Percent is a straight line on the cell voltage: 4.10 V = 100 %, 3.65 V = 0 % (`BATT_FULL_MV` / `BATT_EMPTY_MV` in `REMOTE_espnow.ino`). The remote sends its voltage and percent to its paired robot every 2 s, and prints `BATTERY <mV> <%> (raw <n>)` on its USB serial.
 - Check with a multimeter: send `battery?` over USB to the robot (it prints both batteries). If a reading is off, set `BATT_CAL` (multimeter / reading) in `src/config/BoardConfig.h` for the robot, or in `remote/firmware/src/REMOTE_espnow.ino` for the remote. The remote dashboard's **Calibrate** button prints the remote's `BATT_CAL`.
 
 ## Tilt test (pitch and roll settings)

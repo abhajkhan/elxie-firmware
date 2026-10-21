@@ -1,6 +1,6 @@
 #include "BatteryManager.h"
 
-#include "../communication/ElxiePairingProtocol.h"  // elxLiIonPercent()
+#include "../communication/ElxiePairingProtocol.h"  // elxLinearPercent()
 #include "BatteryLevel.h"
 
 static uint16_t g_packMv = 0;
@@ -32,7 +32,9 @@ int BatteryManager::readPercentage()
     const float mv = pinMv * (BATT_R_TOP_OHM + BATT_R_BOTTOM_OHM) / BATT_R_BOTTOM_OHM * BATT_CAL;
     packMvSmooth = packMvSmooth <= 0 ? mv : packMvSmooth * 0.8f + mv * 0.2f;
     packMv = (uint16_t)(packMvSmooth + 0.5f);
-    const uint8_t pct = elxLiIonPercent((uint16_t)(packMv / BATT_CELLS));
+    // percent from the (calibrated) pin voltage, between the two BoardConfig points
+    const uint16_t pinCalMv = (uint16_t)(packMv * BATT_R_BOTTOM_OHM / (BATT_R_TOP_OHM + BATT_R_BOTTOM_OHM) + 0.5f);
+    const uint8_t pct = elxLinearPercent(pinCalMv, BATT_PIN_FULL_MV, BATT_PIN_LOW_MV, BATT_PIN_LOW_PCT);
     g_packMv = packMv;
     g_percent = pct;
     return pct;
