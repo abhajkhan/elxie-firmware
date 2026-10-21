@@ -38,6 +38,8 @@ namespace pairing
 
     String remoteMacString()
     {
+        if (!radio().remoteAllowed())
+            return String("none");  // never paired (REMOTE_REQUIRE_PAIRING)
         char s[18];
         EspNowManager::macToString(radio().getPeerMac(), s);
         return String(s);
@@ -173,7 +175,7 @@ namespace pairing
                 char meStr[18];
                 EspNowManager::macToString(me, meStr);
                 Serial.printf("REMOTE %s %s robot %s\n", remoteMacString().c_str(),
-                              radio().hasStoredRemote() ? "paired" : "default", meStr);
+                              radio().hasStoredRemote() ? "paired" : (radio().remoteAllowed() ? "default" : "unpaired"), meStr);
             }
         }
     }

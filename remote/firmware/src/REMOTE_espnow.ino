@@ -8,7 +8,9 @@
  *     OBSTACLE -> short buzz
  *  Local button presses still buzz too (kept from original).
  *
- *  Sends to the PAIRED robot (saved in EEPROM). Never paired: MAINBOT MAC 90:70:69:14:d4:38.
+ *  Sends to the PAIRED robot (saved in EEPROM). Never paired: sends nothing, and any
+ *  button press gives two long buzzes ("not paired"). Set REQUIRE_PAIRING 0 to fall
+ *  back to MAINBOT_MAC for development.
  *
  *  PAIRING (Stage 5): hold the FRONT + BOTTOM buttons while switching the remote on.
  *  It buzzes twice, then looks for a robot in pairing mode for 30 s (robot: hold its
@@ -28,8 +30,12 @@
 #include "ElxiePairing.h"  // robot <-> remote pairing (Stage 5)
 
 // ---- MAINBOT (peer) MAC ----
-// Default robot; replaced at boot by the robot saved in EEPROM by pairing.
+// Replaced at boot by the robot saved in EEPROM by pairing.
+// REQUIRE_PAIRING 1: a never-paired remote controls no robot (no stray remote can drive
+// someone else's robot). 0: a never-paired remote drives this default robot (development).
+#define REQUIRE_PAIRING 1
 uint8_t MAINBOT_MAC[6] = {0x90, 0x70, 0x69, 0x14, 0xD4, 0x38};
+bool linked = false; // true when this remote may send to MAINBOT_MAC
 
 // ---- Mux control pins ----
 const uint8_t MUX_S0 = D5;
@@ -81,6 +87,7 @@ typedef struct __attribute__((packed))
 // =====================================================================
 const unsigned long PATTERN_SHORT[] = {100};
 const unsigned long PATTERN_HEARTBEAT[] = {80, 120, 80};
+const unsigned long PATTERN_NOT_PAIRED[] = {400, 150, 400}; // two long buzzes
 const unsigned long SINE_DURATION_MS = 800;
 
 enum HapticType
@@ -119,6 +126,11 @@ void startHapticHeartbeat()
 {
   startHapticSequence(PATTERN_HEARTBEAT,
                       sizeof(PATTERN_HEARTBEAT) / sizeof(unsigned long));
+}
+void startHapticNotPaired()
+{
+  startHapticSequence(PATTERN_NOT_PAIRED,
+                      sizeof(PATTERN_NOT_PAIRED) / sizeof(unsigned long));
 }
 void startHapticSine()
 {
@@ -226,7 +238,12 @@ void setup()
   bool paired = elxpair::loadRobotMac(MAINBOT_MAC);
   char macStr[18];
   elxpair::macToString(MAINBOT_MAC, macStr);
-  Serial.printf("Robot: %s (%s)\n", macStr, paired ? "paired" : "default");
+  if (paired)
+    Serial.printf("Robot: %s (paired)\n", macStr);
+  else if (REQUIRE_PAIRING)
+    Serial.println("Robot: none (not paired: hold FRONT + BOTTOM while switching on to pair)");
+  else
+    Serial.printf("Robot: %s (default)\n", macStr);
 
   // ---- pairing: FRONT + BOTTOM held at power-on ----
   if (digitalRead(PIN_BTN1) == LOW && digitalRead(PIN_BTN2) == LOW)
@@ -258,6 +275,7 @@ void setup()
       if (ok)
       {
         memcpy(MAINBOT_MAC, robot, 6);
+        paired = true;
         elxpair::macToString(MAINBOT_MAC, macStr);
         Serial.printf("PAIRED with robot %s\n", macStr);
         delay(300);
@@ -277,10 +295,15 @@ void setup()
         delay(10);
     }
   }
-  esp_now_add_peer(MAINBOT_MAC, ESP_NOW_ROLE_COMBO, 1, NULL, 0);
+  linked = paired || !REQUIRE_PAIRING;
+  if (linked)
+    esp_now_add_peer(MAINBOT_MAC, ESP_NOW_ROLE_COMBO, 1, NULL, 0);
 
-  // boot buzz
-  startHapticShort();
+  // boot buzz: one short = ready, two long = not paired
+  if (linked)
+    startHapticShort();
+  else
+    startHapticNotPaired();
   while (hapticActive)
     updateHaptic();
 }
@@ -296,6 +319,22 @@ void loop()
   bool sw = (digitalRead(PIN_SW) == LOW);
   bool btn1 = (digitalRead(PIN_BTN1) == LOW);
   bool btn2 = (digitalRead(PIN_BTN2) == LOW);
+
+  // ---- not paired: nothing is sent; a press only reminds the user ----
+  if (!linked)
+  {
+    if ((btn1 && !prevBtn1) || (btn2 && !prevBtn2) || (sw && !prevSw))
+    {
+      Serial.println("[LOG] not paired: hold FRONT + BOTTOM while switching on to pair");
+      startHapticNotPaired();
+    }
+    prevBtn1 = btn1;
+    prevBtn2 = btn2;
+    prevSw = sw;
+    updateHaptic();
+    delay(2);
+    return;
+  }
 
   // ---- local haptics on press (kept from original) ----
   if (btn1 && !prevBtn1)

@@ -1,6 +1,8 @@
 #include "EspNowManager.h"
 #include <Preferences.h>
 
+#include "../config/BoardConfig.h"
+
 // NVS: namespace "elxie", key "remote_mac" = 6 bytes (Stage 5 pairing)
 static const char *kPrefsNs = "elxie";
 static const char *kPrefsKey = "remote_mac";
@@ -64,7 +66,12 @@ bool EspNowManager::begin(const uint8_t *remoteMac)
 
     char macStr[18];
     macToString(peerMac, macStr);
-    Serial.printf("ESP-NOW remote: %s (%s)\n", macStr, storedRemote ? "paired" : "BoardConfig default");
+    if (storedRemote)
+        Serial.printf("ESP-NOW remote: %s (paired)\n", macStr);
+    else if (REMOTE_REQUIRE_PAIRING)
+        Serial.println("ESP-NOW remote: none (not paired, remotes are ignored until pairing)");
+    else
+        Serial.printf("ESP-NOW remote: %s (BoardConfig default)\n", macStr);
 
     initialized = true;
     return true;
@@ -90,6 +97,10 @@ void EspNowManager::onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int
         mgr.resendConfirm = true;
         return;
     }
+
+    // Never paired: no remote controls this robot (REMOTE_REQUIRE_PAIRING).
+    if (!mgr.remoteAllowed())
+        return;
 
     for (int i = 0; i < 6; i++)
     {
@@ -233,7 +244,8 @@ void EspNowManager::forgetRemote()
     }
     storedRemote = false;
     setPeer(defaultMac);
-    Serial.println("PAIR FORGOTTEN (back to the BoardConfig remote)");
+    Serial.println(REMOTE_REQUIRE_PAIRING ? "PAIR FORGOTTEN (no remote until paired again)"
+                                          : "PAIR FORGOTTEN (back to the BoardConfig remote)");
 }
 
 void EspNowManager::setPeer(const uint8_t *mac)
@@ -262,7 +274,7 @@ void EspNowManager::macToString(const uint8_t *mac, char *out)
 
 bool EspNowManager::sendFeedback(uint8_t alert)
 {
-    if (!initialized)
+    if (!initialized || !remoteAllowed())
         return false;
 
     uint8_t buf[sizeof(LegacyRemoteFeedbackPacket)];
@@ -275,7 +287,7 @@ bool EspNowManager::sendFeedback(uint8_t alert)
 
 bool EspNowManager::sendFeedbackPacket(const RemoteFeedbackPacket &fb)
 {
-    if (!initialized)
+    if (!initialized || !remoteAllowed())
         return false;
 
     uint8_t buf[sizeof(RemoteFeedbackPacket)];
@@ -324,4 +336,9 @@ bool EspNowManager::getLatestInputEvent(InputEvent &eventOut)
 
     eventOut = EspNowProtocol::normalizeLegacyInput(packet);
     return true;
+}
+
+bool EspNowManager::remoteAllowed() const
+{
+    return storedRemote || !REMOTE_REQUIRE_PAIRING;
 }

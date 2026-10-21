@@ -39,6 +39,7 @@ public:
     void forgetRemote();                      // back to the BoardConfig default
     const uint8_t *getPeerMac() const { return peerMac; }
     bool hasStoredRemote() const { return storedRemote; }
+    bool remoteAllowed() const;  // false: never paired and REMOTE_REQUIRE_PAIRING
     static void macToString(const uint8_t *mac, char *out);  // "AA:BB:CC:DD:EE:FF"
     // Latest packet without consuming it (Elxie Blocks reads the remote too).
     bool peekLegacyCommand(LegacyRemoteCommandPacket &packetOut);

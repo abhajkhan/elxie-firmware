@@ -113,6 +113,10 @@ constexpr uint8_t BACK_PIXELS[] = {13, 12};
 // ========================================
 // ESP-NOW CONFIGURATION
 // ========================================
+// 1 = a robot that was never paired ignores every remote (pair each set at the factory
+//     with PAIR_ROBOT_AND_REMOTE.bat). Stops one stray remote driving someone else's robot.
+// 0 = an unpaired robot listens to REMOTE_MAC below (development only).
+#define REMOTE_REQUIRE_PAIRING 1
 constexpr uint8_t REMOTE_MAC[6] = {0x18, 0xfe, 0x34, 0xf5, 0xe8, 0x66};
 
 #endif // BOARD_CONFIG_H

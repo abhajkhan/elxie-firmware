@@ -88,6 +88,8 @@ These switch the robot into Blocks mode while they run. Holding remote A + B or 
 
 Each robot listens to one hand remote, and each remote talks to one robot. Both remember the pairing in flash, so it survives power-off and reflashing the app.
 
+**Unpaired means no control.** A robot that was never paired ignores every remote, and a remote that was never paired sends nothing: it gives two long buzzes at power-on and on every button press. So a stray remote can never drive someone else's robot. Pair every set at the factory. (For development, `REMOTE_REQUIRE_PAIRING 0` in `BoardConfig.h` and `REQUIRE_PAIRING 0` in `REMOTE_espnow.ino` bring back the old fixed addresses.)
+
 **How to pair**
 
 1. Put the robot into pairing mode, using any one of these:
@@ -105,8 +107,8 @@ Each robot listens to one hand remote, and each remote talks to one robot. Both 
 |---|---|
 | `pair` | Start pairing mode |
 | `cancel` | Stop pairing mode |
-| `unpair` | Forget the paired remote and go back to `REMOTE_MAC` in `BoardConfig.h` |
-| `remote?` | Prints `REMOTE <mac> paired\|default robot <robot mac>` |
+| `unpair` | Forget the paired remote. The robot then ignores all remotes until it is paired again. |
+| `remote?` | Prints `REMOTE <mac> paired robot <robot mac>`, or `REMOTE none unpaired robot <robot mac>` |
 
 **Bluetooth JSON**
 
