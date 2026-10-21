@@ -22,7 +22,8 @@ void RobotController::update(const SensorSnapshot &sensors, bool batteryLow)
     switch (currentState.mode)
     {
     case TopLevelState::IDLE:
-        pDisplay->updateIdleDisplay(batteryLow);
+        // Home screen (eyes / icon menu) is drawn by LocalMenu through the face engine.
+        (void)batteryLow;
         break;
     case TopLevelState::RC:
         // RC active

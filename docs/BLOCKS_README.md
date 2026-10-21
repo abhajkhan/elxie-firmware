@@ -32,9 +32,17 @@ A healthy boot log contains these lines:
 
 A program keeps running if the app disconnects.
 
+## Home screen (robot idle)
+
+- The robot shows **eyes** (the same eyes as Blocks): they blink and glance around by themselves, and look sleepy when the battery is low. They replace the old happy-face emoji.
+- **Remote menu**: the first joystick move or button press on the remote shows the menu. One item at a time, with a big icon: **joystick left / right** = next / previous, **stick press** = choose, **B** = back. 15 s without input (or B on the main menu) goes back to the eyes.
+  - Main: **Games**, **Free Ride**, **My Programs**
+  - Games: Colour Quest, Echo Memory, Reflex Dash, Driving Pro, Inverted Drive, then the level 1 to 6
+- Only one part of the firmware draws on the screen at a time (the face engine at home, the games during a game or Free Ride), so the screen no longer flickers between the menu and the face.
+
 ## My Programs (on the robot, without the app)
 
-- Open: double tap the touch pad while the robot is idle.
+- Open: double tap the touch pad while the robot is idle, or choose **My Programs** in the remote menu.
 - Touch: **tap** = next program, **hold 1.5 s** = run it. Remote: joystick up/down = choose, **A** = run, **B** = back to the games.
 - When the program ends the list comes back. After 30 s with no input (and no app) the robot goes back to the games.
 - No programs saved yet: the screen says so; make one in the app first.

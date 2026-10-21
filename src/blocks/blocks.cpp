@@ -216,8 +216,7 @@ static void pollDoubleTap() {
     const EspNowManager& radio = EspNowManager::getInstance();
     if (idle && !radio.isPairing()) {
       Serial.println("[Blocks] double tap: My Programs");
-      enter();
-      g_local = true;
+      openPrograms();
       sound.playEffect(sfx::BEEP);
     }
     return;
@@ -246,6 +245,11 @@ void configureAdvertising(BLEAdvertising* adv, const char* name) { ble::configur
 void onBleMtu(uint16_t mtu) { ble::onMtu(mtu); }
 void onBleDisconnect() { ble::onDisconnect(); }
 bool active() { return g_active; }
+void openPrograms() {
+  if (EspNowManager::getInstance().isPairing()) return;
+  enter();
+  g_local = true;  // back to the games after LAUNCHER_TIMEOUT_MS without input, or remote B
+}
 void deactivate() { leave(); }
 
 void loop() {

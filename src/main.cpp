@@ -98,10 +98,10 @@ void loop()
     bool espNowConnected = espNowManager.isConnected();
     controllerManager.update(bleConnected, espNowConnected);
 
-    // 4. Update Local OLED Menu if Remote owns control
-    if (!bleConnected && espNowConnected && !blocksMode && !pairingMode)
+    // 4. Home screen: idle eyes, or the icon menu once the remote is used; Free Ride screen
+    if (!blocksMode)
     {
-        localMenu.update(batteryManager.isLow());
+        localMenu.update(batteryManager.isLow(), espNowConnected, bleConnected, pairingMode);
     }
 
     // 5. Process incoming BLE messages

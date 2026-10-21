@@ -2,10 +2,16 @@
 #include "RobotController.h"
 #include <Arduino.h>
 
+#include "../blocks/blocks.h"
+#include "../blocks/face.h"
+
+// Home screen: one icon at a time, joystick left / right, stick press = select, B = back.
 static const char *MAIN_MENU_ITEMS[] = {
-    "Game Mode",
-    "Free Ride Mode"};
-static const uint8_t MAIN_MENU_COUNT = 2;
+    "Games",
+    "Free Ride",
+    "My Programs"};
+static const uint8_t MAIN_MENU_ICONS[] = {homeicon::GAMES, homeicon::FREE_RIDE, homeicon::MY_PROGRAMS};
+static const uint8_t MAIN_MENU_COUNT = 3;
 
 static const char *GAME_NAMES[] = {
     "Colour Quest",
@@ -13,6 +19,8 @@ static const char *GAME_NAMES[] = {
     "Reflex Dash",
     "Driving Pro",
     "Inverted Drive"};
+static const uint8_t GAME_ICONS[] = {homeicon::COLOUR_QUEST, homeicon::ECHO_MEMORY, homeicon::REFLEX_DASH,
+                                     homeicon::DRIVING_PRO, homeicon::INVERTED_DRIVE};
 static const GameId GAME_IDS[] = {
     GameId::COLOR_QUEST,
     GameId::ECHO_MEMORY,
@@ -20,6 +28,11 @@ static const GameId GAME_IDS[] = {
     GameId::DRIVING_PRO,
     GameId::INVERTED_DRIVE};
 static const uint8_t GAME_COUNT = 5;
+static const uint8_t LEVEL_COUNT = 6;
+
+static const unsigned long HOME_MENU_TIMEOUT_MS = 15000; // back to the eyes after this without input
+static const uint8_t EYES_NEUTRAL = 0;                   // = elx::enums::face::NEUTRAL
+static const uint8_t EYES_SLEEPY = 5;                    // = elx::enums::face::SLEEPY (battery low)
 
 void LocalMenu::begin(DisplayController *display, RobotController *controller)
 {
@@ -36,15 +49,136 @@ void LocalMenu::reset()
     selectedLevel = 1;
 }
 
-void LocalMenu::update(bool batteryLow)
+bool LocalMenu::inMenuScreens() const
 {
-    drawMenuScreen(batteryLow);
+    return currentScreen == MenuScreen::MAIN_MENU || currentScreen == MenuScreen::GAME_SELECT ||
+           currentScreen == MenuScreen::LEVEL_SELECT;
+}
+
+void LocalMenu::wake()
+{
+    lastInputMs = millis();
+    if (!menuVisible)
+    {
+        menuVisible = true;
+        dirty = true;
+    }
+}
+
+void LocalMenu::setFaceOwner(bool on)
+{
+    if (on == faceOwned)
+        return;
+    face.setActive(on);
+    faceOwned = on;
+    shownEyes = 0xFF;
+    dirty = true;
+}
+
+void LocalMenu::update(bool batteryLow, bool remoteConnected, bool appConnected, bool pairing)
+{
+    const TopLevelState mode = pRobotController ? pRobotController->getState().mode : TopLevelState::IDLE;
+    if (pairing)
+    {
+        setFaceOwner(false); // the pairing screen draws directly
+        return;
+    }
+    if (mode == TopLevelState::BLOCKS)
+    {
+        faceOwned = false; // the block engine owns the face (and gives it back when it leaves)
+        return;
+    }
+    if (mode == TopLevelState::RC || mode == TopLevelState::GAME)
+    {
+        setFaceOwner(false); // the game code draws its own screens
+        if (mode == TopLevelState::RC && currentScreen == MenuScreen::FREE_RIDE_ACTIVE && remoteConnected)
+            drawFreeRideScreen(batteryLow);
+        return;
+    }
+
+    // ---- robot idle: home screen
+    const unsigned long now = millis();
+    if (!inMenuScreens())
+    { // a game / Free Ride just ended: come back to its menu
+        const bool fromGame = currentScreen != MenuScreen::FREE_RIDE_ACTIVE;
+        currentScreen = fromGame ? MenuScreen::GAME_SELECT : MenuScreen::MAIN_MENU;
+        selectedIndex = fromGame ? selectedGameIdx : 0;
+        menuVisible = remoteConnected;
+        lastInputMs = now;
+        dirty = true;
+    }
+    if (menuVisible && (!remoteConnected || appConnected || now - lastInputMs > HOME_MENU_TIMEOUT_MS))
+    {
+        menuVisible = false;
+        reset();
+    }
+    setFaceOwner(true);
+    if (menuVisible)
+    {
+        if (dirty)
+        {
+            dirty = false;
+            shownEyes = 0xFF;
+            drawCarousel();
+        }
+        return;
+    }
+    const uint8_t eyes = batteryLow ? EYES_SLEEPY : EYES_NEUTRAL;
+    if (eyes != shownEyes)
+    {
+        shownEyes = eyes;
+        dirty = true; // the carousel must be redrawn when it comes back
+        face.idleEyes(eyes);
+    }
+}
+
+void LocalMenu::drawCarousel()
+{
+    switch (currentScreen)
+    {
+    case MenuScreen::MAIN_MENU:
+        face.carousel("Elxie", MAIN_MENU_ICONS[selectedIndex], MAIN_MENU_ITEMS[selectedIndex], selectedIndex,
+                      MAIN_MENU_COUNT);
+        break;
+    case MenuScreen::GAME_SELECT:
+        face.carousel("Games", GAME_ICONS[selectedIndex], GAME_NAMES[selectedIndex], selectedIndex, GAME_COUNT);
+        break;
+    case MenuScreen::LEVEL_SELECT:
+    {
+        char num[4];
+        snprintf(num, sizeof num, "%u", (unsigned)(selectedIndex + 1));
+        face.carousel(GAME_NAMES[selectedGameIdx], homeicon::LEVEL, num, selectedIndex, LEVEL_COUNT);
+        break;
+    }
+    default:
+        break;
+    }
 }
 
 void LocalMenu::handleInput(const InputEvent &event)
 {
     if (event.source != InputSource::ESP_NOW)
         return;
+
+    // Home screen: the first remote input only wakes the menu from the eyes.
+    if (inMenuScreens())
+    {
+        const bool joyMoved = event.type == InputEventType::JOYSTICK &&
+                              (abs(event.data.joystick.x) > 80 || abs(event.data.joystick.y) > 80);
+        const bool pressed = event.type == InputEventType::ACTION_SELECT || event.type == InputEventType::BACK ||
+                             (event.type == InputEventType::BUTTON && event.data.button.pressed);
+        if (!menuVisible)
+        {
+            if (joyMoved || pressed)
+            {
+                wake();
+                navLatched = joyMoved; // this push must not also move the menu
+            }
+            return;
+        }
+        if (joyMoved || pressed)
+            lastInputMs = millis();
+    }
 
     // Handle double-press on btn2 (BACK) to exit Free Ride or Game Mode
     if (event.type == InputEventType::BACK)
@@ -119,34 +253,29 @@ void LocalMenu::handleInput(const InputEvent &event)
         return;
     }
 
-    // Handle Joystick navigation in menu (y > 100 is UP, y < -100 is DOWN)
-    if (event.type == InputEventType::JOYSTICK && currentScreen != MenuScreen::FREE_RIDE_ACTIVE && currentScreen != MenuScreen::GAME_ACTIVE)
+    // Joystick LEFT / RIGHT steps through the icons (wraps around); centre it between steps.
+    if (event.type == InputEventType::JOYSTICK && inMenuScreens())
     {
-        int16_t y = event.data.joystick.y;
-        static bool debounced = false;
-
-        if (y > 80 && !debounced)
-        { // Joystick UP -> decrease index
-            debounced = true;
-            if (selectedIndex > 0)
-                selectedIndex--;
-        }
-        else if (y < -80 && !debounced)
-        { // Joystick DOWN -> increase index
-            debounced = true;
-            uint8_t maxIdx = (currentScreen == MenuScreen::MAIN_MENU) ? (MAIN_MENU_COUNT - 1) : (currentScreen == MenuScreen::GAME_SELECT ? GAME_COUNT - 1 : 5);
-            if (selectedIndex < maxIdx)
-                selectedIndex++;
-        }
-        else if (abs(y) <= 40)
+        const int16_t x = event.data.joystick.x;
+        const uint8_t count = currentScreen == MenuScreen::MAIN_MENU     ? MAIN_MENU_COUNT
+                              : currentScreen == MenuScreen::GAME_SELECT ? GAME_COUNT
+                                                                         : LEVEL_COUNT;
+        if (!navLatched && (x > 80 || x < -80))
         {
-            debounced = false;
+            navLatched = true;
+            selectedIndex = (uint8_t)((selectedIndex + count + (x > 0 ? 1 : -1)) % count);
+            dirty = true;
+        }
+        else if (abs(x) <= 40)
+        {
+            navLatched = false;
         }
     }
 }
 
 void LocalMenu::selectCurrentItem()
 {
+    dirty = true;
     switch (currentScreen)
     {
     case MenuScreen::MAIN_MENU:
@@ -154,6 +283,10 @@ void LocalMenu::selectCurrentItem()
         { // Game Mode
             currentScreen = MenuScreen::GAME_SELECT;
             selectedIndex = 0;
+        }
+        else if (selectedIndex == 2)
+        { // My Programs: the block engine's list of saved programs (remote B comes back)
+            blocks::openPrograms();
         }
         else if (selectedIndex == 1)
         { // Free Ride Mode
@@ -196,8 +329,13 @@ void LocalMenu::selectCurrentItem()
 
 void LocalMenu::goBack()
 {
+    dirty = true;
     switch (currentScreen)
     {
+    case MenuScreen::MAIN_MENU: // B on the main menu: back to the eyes
+        menuVisible = false;
+        break;
+
     case MenuScreen::GAME_SELECT:
     case MenuScreen::FREE_RIDE_ACTIVE:
         currentScreen = MenuScreen::MAIN_MENU;
@@ -232,84 +370,24 @@ void LocalMenu::goBack()
     }
 }
 
-void LocalMenu::drawMenuScreen(bool batteryLow)
+void LocalMenu::drawFreeRideScreen(bool batteryLow)
 {
     if (!pDisplay || !pDisplay->isPresent())
         return;
+    const unsigned long now = millis();
+    if (now - lastFreeRideDraw < 250) // keep the I2C bus free for the sensors
+        return;
+    lastFreeRideDraw = now;
 
     Adafruit_SSD1306 &display = pDisplay->getDisplay();
     display.clearDisplay();
     display.setTextColor(SSD1306_WHITE);
+    display.setCursor(8, 20);
+    display.setTextSize(2);
+    display.println("FREE RIDE");
     display.setTextSize(1);
-
-    if (currentScreen == MenuScreen::MAIN_MENU)
-    {
-        display.setCursor(0, 0);
-        display.println("--- LOCAL MENU ---");
-
-        for (uint8_t i = 0; i < MAIN_MENU_COUNT; i++)
-        {
-            display.setCursor(10, 18 + i * 16);
-            if (i == selectedIndex)
-            {
-                display.print("> ");
-            }
-            else
-            {
-                display.print("  ");
-            }
-            display.println(MAIN_MENU_ITEMS[i]);
-        }
-    }
-    else if (currentScreen == MenuScreen::GAME_SELECT)
-    {
-        display.setCursor(0, 0);
-        display.println("- SELECT GAME -");
-
-        uint8_t startIdx = (selectedIndex >= 3) ? (selectedIndex - 2) : 0;
-        for (uint8_t i = 0; i < 3 && (startIdx + i) < GAME_COUNT; i++)
-        {
-            uint8_t idx = startIdx + i;
-            display.setCursor(10, 16 + i * 14);
-            if (idx == selectedIndex)
-                display.print("> ");
-            else
-                display.print("  ");
-            display.println(GAME_NAMES[idx]);
-        }
-    }
-    else if (currentScreen == MenuScreen::LEVEL_SELECT)
-    {
-        display.setCursor(0, 0);
-        display.print("GAME: ");
-        display.println(GAME_NAMES[selectedGameIdx]);
-
-        for (uint8_t lvl = 1; lvl <= 3; lvl++)
-        {
-            display.setCursor(10, 18 + (lvl - 1) * 14);
-            if ((lvl - 1) == selectedIndex)
-                display.print("> ");
-            else
-                display.print("  ");
-            display.print("Level ");
-            display.println(lvl);
-        }
-    }
-    else if (currentScreen == MenuScreen::FREE_RIDE_ACTIVE)
-    {
-        display.setCursor(8, 20);
-        display.setTextSize(2);
-        display.println("FREE RIDE");
-        display.setTextSize(1);
-        display.setCursor(18, 45);
-        display.println("Mode Active");
-    }
-    else if (currentScreen == MenuScreen::GAME_ACTIVE)
-    {
-        // Active game engine (e.g. ColorQuest) renders its own OLED screens
-        return;
-    }
-
+    display.setCursor(18, 45);
+    display.println("Mode Active");
     pDisplay->drawBatteryOverlay(batteryLow);
     display.display();
 }

@@ -21,14 +21,20 @@ class LocalMenu
 {
 public:
     void begin(DisplayController *display, RobotController *controller);
-    void update(bool batteryLow);
+    // Every loop (not in Blocks mode). Robot idle: eyes, or the icon menu once the remote is
+    // used (back to the eyes after HOME_MENU_TIMEOUT_MS without input). Free Ride: its screen.
+    void update(bool batteryLow, bool remoteConnected, bool appConnected, bool pairing);
     void handleInput(const InputEvent &event);
     void reset();
 
     MenuScreen getScreen() const { return currentScreen; }
 
 private:
-    void drawMenuScreen(bool batteryLow);
+    void drawFreeRideScreen(bool batteryLow);
+    void drawCarousel();
+    void setFaceOwner(bool on);
+    bool inMenuScreens() const;
+    void wake();
     void selectCurrentItem();
     void goBack();
 
@@ -40,6 +46,13 @@ private:
     uint8_t selectedGameIdx = 0;
     uint8_t selectedLevel = 1;
     unsigned long lastBtn2ClickMs = 0;
+    bool menuVisible = false;          // icon menu shown (else the eyes)
+    unsigned long lastInputMs = 0;
+    bool navLatched = false;           // joystick must return to the middle between steps
+    bool dirty = true;                 // carousel needs redrawing
+    bool faceOwned = false;            // the face engine draws the screen (robot idle)
+    uint8_t shownEyes = 0xFF;          // expression shown last (0xFF = none)
+    unsigned long lastFreeRideDraw = 0;
 };
 
 #endif // LOCAL_MENU_H

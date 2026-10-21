@@ -26,6 +26,7 @@ void onBleDisconnect();
 void loop();
 bool active();      // true while the block engine owns the robot
 void deactivate();  // leave Blocks mode now (e.g. remote pairing starts)
+void openPrograms(); // "My Programs" on the robot (same as a double tap on the touch pad)
 // USB serial factory commands (calmag, compass?, tilttest, tilt). Returns false if the
 // line is not one of them. See docs/BLOCKS_README.md.
 bool serialCommand(const char* line);
