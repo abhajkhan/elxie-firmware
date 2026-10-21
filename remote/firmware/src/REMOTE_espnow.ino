@@ -49,14 +49,15 @@ const uint8_t CH_Y = 5;
 const uint8_t CH_BATT = 4; // battery divider (100k / 100k) on mux channel 4
 
 // ---- Battery (one 18650 cell) ----
-// cell+ --100k-- mux ch4 --100k-- GND, mux COM -> D1 Mini A0. The D1 Mini has its own
-// 220k/100k divider on A0 (A0 pin 3.2 V = raw 1023), which also LOADS our divider with
-// 320k. So the pin sees Vbat * (100k||320k) / (100k + 100k||320k) = 0.432 * Vbat.
+// cell+ --100k-- mux ch4 --100k-- GND, mux COM -> D1 Mini A0 (A0 pin 3.2 V = raw 1023).
+// Measured on the Elxie remote (Oct 2026): no loading of the divider by A0 is visible
+// (cell 3.92 V on the meter, firmware 4.03 V with plain x2), so A0_LOAD = 0, and
+// BATT_CAL = 3.92 / 4.03 corrects the ESP8266 ADC's gain.
 const float BATT_R_TOP = 100000.0f;    // battery side
 const float BATT_R_BOTTOM = 100000.0f; // to GND
-const float A0_LOAD = 320000.0f;       // D1 Mini's 220k + 100k from A0 to GND (0 = no loading)
+const float A0_LOAD = 0.0f;            // 0 = no loading (measured); 320000 if A0 loads the divider
 const float A0_FULL_SCALE_V = 3.2f;    // A0 pin volts at raw 1023
-const float BATT_CAL = 1.000f;         // multimeter / reading, if a unit reads off
+const float BATT_CAL = 0.972f;         // multimeter / reading (3.92 V meter / 4.03 V reading, Oct 2026)
 const unsigned long BATT_REPORT_MS = 2000;
 // Percent: straight line on the CELL voltage, set from measurements (Oct 2026):
 //   cell 4.10 V (2.05 V at mux ch4, unloaded) = 100 %,  cell 3.65 V (1.825 V) = 0 %
