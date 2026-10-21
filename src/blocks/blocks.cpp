@@ -30,6 +30,12 @@ static RobotController* g_robot = nullptr;
 static bool g_active = false;
 static uint32_t g_lastTick = 0;
 static uint32_t g_idleSince = 0;  // app gone and no program running since...
+static bool g_local = false;      // opened on the robot (double tap), not by the app
+
+// Double tap on the touch pad while the robot is idle in the games = open "My Programs".
+static bool g_tapDown = false;
+static uint32_t g_tapDownAt = 0, g_lastTapAt = 0, g_tapChangeAt = 0;
+static bool g_tapRaw = false;
 
 // ---- Factory checks over USB serial (tilt test, live sensor print)
 enum TiltStep : uint8_t { TILT_OFF, TILT_LEVEL, TILT_NOSE, TILT_RIGHT };
@@ -60,6 +66,7 @@ static void leave() {
   if (!g_active) return;
   Serial.println("[Blocks] Blocks mode off");
   g_active = false;
+  g_local = false;
   g_tiltStep = TILT_OFF;
   g_live = false;
   app::stopProgram();  // also stops motion, sound and light effects
@@ -183,6 +190,41 @@ bool serialCommand(const char* line) {
   return true;
 }
 
+static void pollDoubleTap() {
+  const uint32_t now = millis();
+  const bool raw = hal::pinRead(PIN_TOUCH) == (TOUCH_ACTIVE_HIGH ? 1 : 0);
+  if (raw != g_tapRaw) {  // debounce
+    g_tapRaw = raw;
+    g_tapChangeAt = now;
+    return;
+  }
+  if (now - g_tapChangeAt < TOUCH_DEBOUNCE_MS || raw == g_tapDown) return;
+  g_tapDown = raw;
+  if (raw) {
+    g_tapDownAt = now;
+    return;
+  }
+  // released
+  const bool isTap = now - g_tapDownAt <= TOUCH_TAP_MAX_MS;
+  if (!isTap) {
+    g_lastTapAt = 0;
+    return;
+  }
+  if (g_lastTapAt && g_tapDownAt - g_lastTapAt <= TOUCH_OPEN_GAP_MS) {
+    g_lastTapAt = 0;
+    const bool idle = g_robot->getState().mode == TopLevelState::IDLE;
+    const EspNowManager& radio = EspNowManager::getInstance();
+    if (idle && !radio.isPairing()) {
+      Serial.println("[Blocks] double tap: My Programs");
+      enter();
+      g_local = true;
+      sound.playEffect(sfx::BEEP);
+    }
+    return;
+  }
+  g_lastTapAt = now;
+}
+
 void begin(LedController& leds, DisplayController& display, RobotController& robot) {
   g_robot = &robot;
   hal::initI2c();
@@ -208,7 +250,10 @@ void deactivate() { leave(); }
 
 void loop() {
   vmlink::poll();  // may call enter()
-  if (!g_active) return;
+  if (!g_active) {
+    pollDoubleTap();
+    return;
+  }
 
   // The game code switched to RC or a game (app command): hand the robot back.
   if (g_robot->getState().mode != TopLevelState::BLOCKS) {
@@ -234,14 +279,22 @@ void loop() {
 
   serialChecksTick(now);
 
-  // App closed and nothing running: after 3 s give the robot back to the games.
+  // Remote B in "My Programs" (no app): back to the games.
+  if (app::takeLeaveRequest() && !vmlink::bleConnected() && !app::running()) {
+    leave();
+    return;
+  }
+
+  // Nothing running and no app: give the robot back to the games, after 3 s, or after
+  // LAUNCHER_TIMEOUT_MS without input when "My Programs" was opened on the robot.
   const bool busy = app::running() || app::magCalibrating() || sensors.calibrating() || g_tiltStep != TILT_OFF || g_live;
   if (vmlink::bleConnected() || busy) {
     g_idleSince = 0;
   } else if (!g_idleSince) {
     g_idleSince = now;
-  } else if (now - g_idleSince >= 3000) {
-    leave();
+  } else {
+    const uint32_t limit = g_local ? LAUNCHER_TIMEOUT_MS : 3000;
+    if (now - g_idleSince >= limit && now - app::lastInputMs() >= limit) leave();
   }
 }
 

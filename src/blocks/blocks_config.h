@@ -89,7 +89,17 @@
 #define PIN_TOUCH          12
 #define TOUCH_ACTIVE_HIGH  1       // 0 if the module's A-pad is bridged (active LOW)
 #define TOUCH_DEBOUNCE_MS  30
-#define TOUCH_LONGPRESS_MS 1500    // idle: hold to run the selected trick
+#define TOUCH_LONGPRESS_MS 1500    // "My Programs" list: hold to run the selected program
+#define TOUCH_TAP_MAX_MS   400     // robot idle: a press shorter than this is a tap
+#define TOUCH_OPEN_GAP_MS  600     // robot idle: two taps within this = open "My Programs"
+#define LAUNCHER_TIMEOUT_MS 30000  // "My Programs" without the app: back to the games after this idle time
+
+// ---------------------------------------------------------------- Lift / tilt safety stop
+// A running program is stopped when the robot is tilted more than LIFT_STOP_DEG (or turned
+// upside down) WHILE its wheels are driving, for LIFT_STOP_MS. Uses the MPU6050 (not the
+// IR sensors, which misread in sunlight). Tilting a robot whose wheels are still is fine.
+#define LIFT_STOP_DEG      60
+#define LIFT_STOP_MS       300
 #define TOUCH_STOP_MS      2000    // running: hold to stop the program
 
 // ---------------------------------------------------------------- Magnetometer

@@ -28,8 +28,23 @@ A healthy boot log contains these lines:
 | A block program is running | The remote's joystick and buttons go to the program, not to RC or the local menu. Holding A + B on the remote, or holding touch for 2 s, stops the program. |
 | The app starts RC or a game | Blocks mode ends and the game code takes the robot back. |
 | The app disconnects and no program is running | After 3 s the robot returns to IDLE: the idle face and the remote menu. |
+| **Double tap** on the touch pad while the robot is idle (no game, no app needed) | Opens **My Programs**: the programs saved on the robot. |
 
 A program keeps running if the app disconnects.
+
+## My Programs (on the robot, without the app)
+
+- Open: double tap the touch pad while the robot is idle.
+- Touch: **tap** = next program, **hold 1.5 s** = run it. Remote: joystick up/down = choose, **A** = run, **B** = back to the games.
+- When the program ends the list comes back. After 30 s with no input (and no app) the robot goes back to the games.
+- No programs saved yet: the screen says so; make one in the app first.
+
+## Safety stops (Blocks)
+
+| Stop | How |
+|---|---|
+| E-stop | Hold remote A + B, or hold the touch pad 2 s (a press that started the program does not count until released) |
+| Lift / tilt stop | Tilted more than 60 degrees or upside down **while the wheels are driving**, for 0.3 s: motors and program stop, the face shows "Put me down". Uses the motion sensor, not the IR sensors (sunlight). Tilting a robot whose wheels are still does not stop anything, so "tilt" blocks keep working. Settings: `LIFT_STOP_DEG`, `LIFT_STOP_MS` in `blocks_config.h`. |
 
 ## What was added or changed
 
