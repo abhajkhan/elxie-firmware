@@ -171,7 +171,8 @@ namespace pairing
             {
                 uint8_t rp;
                 uint16_t rmv;
-                Serial.printf("BATTERY robot %.2f V %u%%", battery::packMv() / 1000.0f, battery::percent());
+                Serial.printf("BATTERY robot %.2f V %u%% (pin %u mV)", battery::packMv() / 1000.0f, battery::percent(),
+                              battery::pinMv());
                 if (radio().remoteBattery(rp, rmv))
                     Serial.printf(" remote %.2f V %u%%\n", rmv / 1000.0f, rp);
                 else
