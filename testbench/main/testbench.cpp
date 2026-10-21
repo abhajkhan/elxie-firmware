@@ -39,6 +39,7 @@
 #include "hal/motors.h"
 #include "hal/platform.h"
 #include "led_strip.h"
+#include "nvs.h"
 #include "nvs_flash.h"
 #include "u8g2.h"
 
@@ -251,12 +252,56 @@ static volatile int g_rxCount = 0, g_rxOurs = 0;
 static volatile uint8_t g_rxMac[6];
 static volatile uint8_t g_rxData[8];
 static volatile int g_rxLen = 0;
-static const uint8_t kRemoteMac[6] = REMOTE_MAC;
+// The remote this robot is paired with: read from the Home firmware's NVS ("elxie" /
+// "remote_mac", same flash layout), else board_config's REMOTE_MAC.
+static uint8_t g_remoteMac[6] = REMOTE_MAC;
+static bool g_remotePaired = false;
 static bool g_radioOk = false;
+
+static void loadPairedRemote() {
+  nvs_handle_t h;
+  if (nvs_open("elxie", NVS_READONLY, &h) != ESP_OK) return;
+  uint8_t mac[6];
+  size_t n = sizeof mac;
+  if (nvs_get_blob(h, "remote_mac", mac, &n) == ESP_OK && n == 6 && (mac[0] & 1) == 0 &&
+      (mac[0] | mac[1] | mac[2] | mac[3] | mac[4] | mac[5]) != 0) {
+    memcpy(g_remoteMac, mac, 6);
+    g_remotePaired = true;
+  }
+  nvs_close(h);
+}
+
+// Joystick -100..100 (right +, up +) and button bits from either remote packet:
+//   hand remote (ESP8266): int16 x, int16 y (raw ADC 0..1023), btn1, btn2, stick = 7 bytes
+//   Block Code remote:     0xE1, 1, int8 x, int8 y, uint16 buttons
+static int remoteAxis(int raw) {
+  int d = raw - 512;
+  if (abs(d) < 60) d = 0;
+  d = d * 100 / 450;
+  return d > 100 ? 100 : (d < -100 ? -100 : d);
+}
+static bool decodeRemote(const uint8_t* d, int len, int* x, int* y, int* btn) {
+  if (len == 7) {
+    *x = remoteAxis((int16_t)(d[0] | (d[1] << 8)));
+    *y = remoteAxis((int16_t)(d[2] | (d[3] << 8)));
+    *btn = (d[4] ? 1 << REMOTE_BTN_A : 0) | (d[5] ? 1 << REMOTE_BTN_B : 0) | (d[6] ? 1 << REMOTE_BTN_STICK : 0);
+    return true;
+  }
+  if (len >= 6 && d[0] == 0xE1 && d[1] == 1) {
+    *x = (int8_t)d[2];
+    *y = (int8_t)d[3];
+    *btn = d[4] | (d[5] << 8);
+    return true;
+  }
+  return false;
+}
+
 static void onRecv(const esp_now_recv_info_t* info, const uint8_t* data, int len) {
+  const bool control = len == 7 || (len >= 6 && data[0] == 0xE1);  // not pairing packets
+  if (!control) return;
   portENTER_CRITICAL(&g_rmux);
   g_rxCount = g_rxCount + 1;
-  if (memcmp(info->src_addr, kRemoteMac, 6) == 0) g_rxOurs = g_rxOurs + 1;
+  if (memcmp(info->src_addr, g_remoteMac, 6) == 0) g_rxOurs = g_rxOurs + 1;
   for (int i = 0; i < 6; ++i) g_rxMac[i] = info->src_addr[i];
   g_rxLen = len < 8 ? len : 8;
   for (int i = 0; i < g_rxLen; ++i) g_rxData[i] = data[i];
@@ -662,7 +707,7 @@ static void testLights() {
 
 static void testMotors() {
   section(11, "motors", "Motors (TB6612FNG)");
-  logf("STBY=GPIO%d  LEFT: PWMA=GPIO%d AIN1=GPIO%d AIN2=GPIO%d  RIGHT: PWMB=GPIO%d BIN1=GPIO%d BIN2=GPIO%d", PIN_MOTOR_STBY,
+  logf("STBY=GPIO%d  LEFT (motor B): PWM=GPIO%d IN1=GPIO%d IN2=GPIO%d  RIGHT (motor A): PWM=GPIO%d IN1=GPIO%d IN2=GPIO%d", PIN_MOTOR_STBY,
        PIN_MOTOR_L_PWM, PIN_MOTOR_L_IN1, PIN_MOTOR_L_IN2, PIN_MOTOR_R_PWM, PIN_MOTOR_R_IN1, PIN_MOTOR_R_IN2);
   logf("invert: left=%d right=%d", MOTOR_L_INVERT, MOTOR_R_INVERT);
   screen("MOTORS", "LIFT THE WHEELS", "starting in 3 s");
@@ -684,7 +729,7 @@ static void testMotors() {
     motors::write(0, 0);
     const float drop = vIdle - vRun;
     if (drop > 0.04f) ++sagging;
-    logf("  %s  AIN1=%d AIN2=%d BIN1=%d BIN2=%d STBY=%d  battery %.2f -> %.2f V (%s)", s.what, l1, l2, r1, r2,
+    logf("  %s  L.IN1=%d L.IN2=%d R.IN1=%d R.IN2=%d STBY=%d  battery %.2f -> %.2f V (%s)", s.what, l1, l2, r1, r2,
          hal::pinRead(PIN_MOTOR_STBY), vIdle, vRun, drop > 0.04f ? "load seen" : "no load seen");
     delayMs(500);
   }
@@ -697,9 +742,10 @@ static void testMotors() {
 static void testRemote() {
   section(12, "remote", "Remote (ESP-NOW)");
   char mac[20];
-  snprintf(mac, sizeof mac, "%02X:%02X:%02X:%02X:%02X:%02X", kRemoteMac[0], kRemoteMac[1], kRemoteMac[2], kRemoteMac[3],
-           kRemoteMac[4], kRemoteMac[5]);
-  logf("paired remote MAC %s, channel %d", mac, ESPNOW_CHANNEL);
+  snprintf(mac, sizeof mac, "%02X:%02X:%02X:%02X:%02X:%02X", g_remoteMac[0], g_remoteMac[1], g_remoteMac[2],
+           g_remoteMac[3], g_remoteMac[4], g_remoteMac[5]);
+  logf("%s remote MAC %s, channel %d", g_remotePaired ? "paired" : "NOT PAIRED, default", mac, ESPNOW_CHANNEL);
+  if (!g_remotePaired) logf(">>> pair this robot first (PAIR_ROBOT_AND_REMOTE.bat): an unpaired remote sends nothing");
   if (!g_radioOk) {
     result("remote", FAIL, "Wi-Fi / ESP-NOW failed to start");
     return;
@@ -719,8 +765,8 @@ static void testRemote() {
     len = g_rxLen;
     for (int i = 0; i < len; ++i) d[i] = g_rxData[i];
     portEXIT_CRITICAL(&g_rmux);
-    if (len >= 6 && d[0] == 0xE1 && d[1] == 1) {
-      const int x = (int8_t)d[2], y = (int8_t)d[3], btn = d[4] | (d[5] << 8);
+    int x, y, btn;
+    if (decodeRemote(d, len, &x, &y, &btn)) {
       if (abs(x - lastX) > 10 || abs(y - lastY) > 10 || btn != lastB) {
         logf("  joystick x=%+4d y=%+4d  A=%d B=%d stick=%d", x, y, (btn >> REMOTE_BTN_A) & 1, (btn >> REMOTE_BTN_B) & 1,
              (btn >> REMOTE_BTN_STICK) & 1);
@@ -942,11 +988,7 @@ static void liveTask(void*) {
     for (int i = 0; i < rlen; ++i) d[i] = g_rxData[i];
     const int rxCount = g_rxCount, rxOurs = g_rxOurs;
     portEXIT_CRITICAL(&g_rmux);
-    if (rlen >= 6 && d[0] == 0xE1 && d[1] == 1) {
-      jx = (int8_t)d[2];
-      jy = (int8_t)d[3];
-      btn = d[4] | (d[5] << 8);
-    }
+    if (!decodeRemote(d, rlen, &jx, &jy, &btn)) jx = jy = btn = 0;
     emitf("{\"t\":\"live\",\"ms\":%lu,\"run\":%d,"
           "\"ir\":[%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d],"
           "\"imu\":%d,\"a\":[%.2f,%.2f,%.2f],\"g\":[%.1f,%.1f,%.1f],\"pitch\":%.1f,\"roll\":%.1f,"
@@ -1046,6 +1088,7 @@ static void hello() {
 extern "C" void app_main(void) {
   esp_err_t err = nvs_flash_init();  // needed by Wi-Fi; never erases the main firmware's data
   if (err != ESP_OK) printf("nvs_flash_init: %s (remote test may fail)\n", esp_err_to_name(err));
+  else loadPairedRemote();
   // UART0 driver: lets the dashboard send commands; printf keeps working through it
   uart_driver_install(UART_NUM_0, 1024, 4096, 0, nullptr, 0);
   uart_vfs_dev_use_driver(UART_NUM_0);

@@ -1,7 +1,9 @@
-# Elxie testbench — same flash layout as the main firmware, so the 'storage'
-# partition (saved programs, line calibration) is never touched.
+# Elxie testbench: same flash layout as the Home firmware (partitions.csv), so the
+# Home firmware's NVS (remote pairing) and FFat (Blocks programs, compass and line
+# calibration) are never touched. No PSRAM, DIO flash (as the Home firmware).
 CONFIG_IDF_TARGET="esp32s3"
-CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_FREERTOS_HZ=1000

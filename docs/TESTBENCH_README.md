@@ -59,13 +59,14 @@ Every run is saved as `logs\testbench_<date>_<time>.log`, with a timestamp on ea
 | 8 | Battery | 3.0–4.4 V |
 | 9 | Buzzer | plays a rising scale (CHECK) |
 | 10 | NeoPixels | red, green, blue and white, then LED 1..30 one by one (CHECK) |
-| 11 | Motors | each wheel forward and back, then both; the log shows pin levels and battery dip (CHECK) |
-| 12 | Remote | ESP-NOW packets arrive from the paired remote MAC |
+| 11 | Motors | left wheel forward and back, right wheel forward and back, then both forward; the log shows pin levels and battery dip (CHECK) |
+| 12 | Remote | ESP-NOW packets arrive from the remote this robot is paired with (read from the robot's memory), and the joystick and buttons are shown |
 
 ## Notes
 
 - Pins and constants come from `blockcode/firmware/main/board_config.h`, and the I2C, ADC, PWM and motor code from `blockcode/firmware/main/hal/`. The testbench always tests what the main firmware uses, so change pins only in `board_config.h`.
-- The testbench uses the same partition table as the main firmware. Your saved programs and line calibration in the `storage` partition are not touched.
+- The testbench uses the same flash layout as the Home firmware. The remote pairing, Blocks programs and compass/line calibration stored on the robot are not touched.
+- Motor pins and direction match the Home firmware: motor B is the left wheel and is wired reversed on the current robots.
 - The lights run dimmed, so the test is safe on USB power.
 
 # Remote testbench (hand remote, ESP8266 D1 Mini)
@@ -106,6 +107,19 @@ The radio test prints **this remote's MAC address**, and tests the link to the r
 - **Pairing:** shows which robot the remote is paired with. **Pair with a robot** pairs with a robot that is in pairing mode, and **Forget robot** goes back to the default robot.
 
 The pins are the same as `REMOTE_espnow.ino`. The battery divider (100 k / 100 k on mux channel 4) is set in `remote/testbench/src/main.cpp` (`CH_BATT`, `BATT_R_TOP`, `BATT_R_BOTTOM`).
+
+## Factory station (recommended): FACTORY_SETUP.bat
+
+One run prepares one set (robot + remote) and asks before each step:
+
+1. **Remote firmware.** Plug in only the remote. Needed once, so the remote has the pairing-only firmware (an unpaired remote sends nothing).
+2. **Robot firmware.** Plug in only the robot, battery on. Flashes the Home firmware and checks the boot log for `[Blocks] ready`.
+3. **Pairing.** Keep every other remote switched off. On this set's remote, hold FRONT + BOTTOM while switching it on.
+4. **Compass.** Robot on a flat floor away from metal; it spins for 6 s.
+
+The window ends with `FACTORY_RESULT=READY` or `NOT READY`, and every run adds a line to `logs\factory_record.csv`: date, set number, robot MAC, remote MAC, and the result of each step. Steps that are already done (paired, calibrated) can be skipped, so a run can also re-check a finished set. Label the robot and its remote with the same set number.
+
+The separate tools below do the same steps one at a time.
 
 ## Factory pairing (one robot + one remote)
 
