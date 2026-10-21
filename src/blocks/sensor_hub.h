@@ -20,6 +20,7 @@ struct SensorState {
   float pitch, roll;    // degrees
   float yaw;            // integrated gyro heading, degrees (not wrapped)
   float gyroZ;          // deg/s
+  float accelX, accelY; // g, raw sensor axes (filtered), for the tilt test
   float accelZ;         // g (about +1 when upright, -1 upside down)
   bool shaken;
   bool imuOk;
@@ -110,8 +111,6 @@ class SensorHub {
   float magSum_ = 0;
   uint32_t magN_ = 0;
   float soundSmooth_ = 0;
-  uint8_t battDiv_ = 0;
-  float battSmooth_ = -1;
   float lastLinePos_ = 0;
 };
 

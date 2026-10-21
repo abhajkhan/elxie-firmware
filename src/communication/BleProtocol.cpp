@@ -1,4 +1,9 @@
 #include "BleProtocol.h"
+
+#include <math.h>
+
+#include "../hardware/BatteryLevel.h"
+#include "EspNowManager.h"
 #include <string.h>
 
 GameId BleProtocol::parseGameId(const char *idStr)
@@ -306,8 +311,18 @@ String BleProtocol::serializeTelemetry(const SensorSnapshot &snapshot, InputSour
     JsonObject pit = doc["pit"].to<JsonObject>();
     pit["detected"] = snapshot.pitDetected;
 
+    // robot: % and volts of the 2-cell pack; remote: % and volts of its cell, only while
+    // the paired remote is reporting (left out otherwise).
     JsonObject batt = doc["battery"].to<JsonObject>();
-    batt["robot"] = snapshot.batteryPercent;
+    batt["robot"] = battery::percent();
+    batt["robotV"] = roundf(battery::packMv() / 10.0f) / 100.0f;
+    uint8_t remotePct;
+    uint16_t remoteMv;
+    if (EspNowManager::getInstance().remoteBattery(remotePct, remoteMv))
+    {
+        batt["remote"] = remotePct;
+        batt["remoteV"] = roundf(remoteMv / 10.0f) / 100.0f;
+    }
 
     JsonObject touch = doc["touch"].to<JsonObject>();
     touch["event"] = snapshot.touchActive ? "touched" : "none";

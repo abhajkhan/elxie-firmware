@@ -1,6 +1,7 @@
 #include "RemotePairing.h"
 
 #include "../blocks/blocks.h"
+#include "../hardware/BatteryLevel.h"
 #include "../communication/BleManager.h"
 #include "../communication/EspNowManager.h"
 #include "../config/BoardConfig.h"
@@ -38,6 +39,8 @@ namespace pairing
 
     String remoteMacString()
     {
+        if (!radio().remoteAllowed())
+            return String("none");  // never paired (REMOTE_REQUIRE_PAIRING)
         char s[18];
         EspNowManager::macToString(radio().getPeerMac(), s);
         return String(s);
@@ -164,6 +167,18 @@ namespace pairing
                 forget();
             else if (!strcmp(serialLine, "cancel"))
                 cancel();
+            else if (!strcmp(serialLine, "battery?"))
+            {
+                uint8_t rp;
+                uint16_t rmv;
+                Serial.printf("BATTERY robot %.2f V %u%%", battery::packMv() / 1000.0f, battery::percent());
+                if (radio().remoteBattery(rp, rmv))
+                    Serial.printf(" remote %.2f V %u%%\n", rmv / 1000.0f, rp);
+                else
+                    Serial.println(" remote none");
+            }
+            else if (blocks::serialCommand(serialLine))
+                ;  // calmag, compass?, tilttest, tilt (Blocks factory checks)
             else if (!strcmp(serialLine, "remote?"))
             {
                 uint8_t me[6];
@@ -171,7 +186,7 @@ namespace pairing
                 char meStr[18];
                 EspNowManager::macToString(me, meStr);
                 Serial.printf("REMOTE %s %s robot %s\n", remoteMacString().c_str(),
-                              radio().hasStoredRemote() ? "paired" : "default", meStr);
+                              radio().hasStoredRemote() ? "paired" : (radio().remoteAllowed() ? "default" : "unpaired"), meStr);
             }
         }
     }

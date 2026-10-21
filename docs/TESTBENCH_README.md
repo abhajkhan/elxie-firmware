@@ -59,13 +59,14 @@ Every run is saved as `logs\testbench_<date>_<time>.log`, with a timestamp on ea
 | 8 | Battery | 3.0–4.4 V |
 | 9 | Buzzer | plays a rising scale (CHECK) |
 | 10 | NeoPixels | red, green, blue and white, then LED 1..30 one by one (CHECK) |
-| 11 | Motors | each wheel forward and back, then both; the log shows pin levels and battery dip (CHECK) |
-| 12 | Remote | ESP-NOW packets arrive from the paired remote MAC |
+| 11 | Motors | left wheel forward and back, right wheel forward and back, then both forward; the log shows pin levels and battery dip (CHECK) |
+| 12 | Remote | ESP-NOW packets arrive from the remote this robot is paired with (read from the robot's memory), and the joystick and buttons are shown |
 
 ## Notes
 
 - Pins and constants come from `blockcode/firmware/main/board_config.h`, and the I2C, ADC, PWM and motor code from `blockcode/firmware/main/hal/`. The testbench always tests what the main firmware uses, so change pins only in `board_config.h`.
-- The testbench uses the same partition table as the main firmware. Your saved programs and line calibration in the `storage` partition are not touched.
+- The testbench uses the same flash layout as the Home firmware. The remote pairing, Blocks programs and compass/line calibration stored on the robot are not touched.
+- Motor pins and direction match the Home firmware: motor B is the left wheel and is wired reversed on the current robots.
 - The lights run dimmed, so the test is safe on USB power.
 
 # Remote testbench (hand remote, ESP8266 D1 Mini)
@@ -107,9 +108,43 @@ The radio test prints **this remote's MAC address**, and tests the link to the r
 
 The pins are the same as `REMOTE_espnow.ino`. The battery divider (100 k / 100 k on mux channel 4) is set in `remote/testbench/src/main.cpp` (`CH_BATT`, `BATT_R_TOP`, `BATT_R_BOTTOM`).
 
+## Factory station (recommended): FACTORY_SETUP.bat
+
+One run prepares one set (robot + remote) and asks before each step:
+
+1. **Remote firmware.** Plug in only the remote. Needed once, so the remote has the pairing-only firmware (an unpaired remote sends nothing).
+2. **Robot firmware.** Plug in only the robot, battery on. Flashes the Home firmware and checks the boot log for `[Blocks] ready`.
+3. **Pairing.** Keep every other remote switched off. On this set's remote, hold FRONT + BOTTOM while switching it on.
+4. **Compass.** Robot on a flat floor away from metal; it spins for 6 s.
+
+The window ends with `FACTORY_RESULT=READY` or `NOT READY`, and every run adds a line to `logs\factory_record.csv`: date, set number, robot MAC, remote MAC, and the result of each step. Steps that are already done (paired, calibrated) can be skipped, so a run can also re-check a finished set. Label the robot and its remote with the same set number.
+
+The separate tools below do the same steps one at a time.
+
 ## Factory pairing (one robot + one remote)
 
 1. Flash the Home firmware on the robot (`FLASH_HOME_FIRMWARE.bat`) and the remote firmware on the remote (`FLASH_REMOTE_FIRMWARE.bat`).
 2. Plug in **only the robot** over USB and double-click **PAIR_ROBOT_AND_REMOTE.bat**. The robot blinks blue for 30 s.
 3. Hold **FRONT + BOTTOM** on the remote while switching it on.
 4. The window shows `PAIRING_RESULT=OK` and the remote gives a double buzz. Pair one set at a time, so a remote can't pick the wrong robot.
+
+## Compass calibration (once per robot)
+
+1. The robot runs the Home firmware and its battery is switched on (the motors need it).
+2. Plug in **only the robot** over USB and put it on a flat floor, at least 1 m from metal, magnets, speakers and laptops. Leave the cable loose.
+3. Double-click **CALIBRATE_COMPASS.bat** and press Enter. The robot spins in place for 6 s.
+4. The window shows `COMPASS_RESULT=OK` and the robot shows "Compass ready". The calibration is saved on the robot and survives reflashing. If it shows `FAILED`, move away from metal and run it again.
+
+## Battery readings
+
+- **Robot** (2 x 18650 in series, pack+ --2k-- GPIO7 --1k-- GND): pack voltage = pin voltage x 3, read with the ESP32's factory-calibrated ADC. Percent comes from a Li-ion curve on the per-cell voltage (pack / 2).
+- **Remote** (one 18650, cell+ --100k-- mux channel 4 --100k-- GND): the D1 Mini's own 220k + 100k on A0 loads the bottom resistor, so cell voltage = A0 voltage x 2.31 (not x 2). The remote sends its voltage and percent to its paired robot every 2 s.
+- Check with a multimeter: send `battery?` over USB to the robot (it prints both batteries). If a reading is off, set `BATT_CAL` (multimeter / reading) in `src/config/BoardConfig.h` for the robot, or in `remote/firmware/src/REMOTE_espnow.ino` for the remote. The remote dashboard's **Calibrate** button prints the remote's `BATT_CAL`.
+
+## Tilt test (pitch and roll settings)
+
+Run it on one robot of each hardware build; the result applies to all robots with the same board.
+
+1. Plug in the robot over USB and hold it in your hand.
+2. Double-click **TILT_TEST.bat**, press Enter and follow the prompts (also on the robot's screen): level, then nose down about 45°, then right side down about 45°, 6 s each.
+3. `TILT_RESULT=OK` means the settings are right. `CHANGE` prints the three values to put in `src/blocks/blocks_config.h` (`IMU_SWAP_PITCH_ROLL`, `IMU_PITCH_SIGN`, `IMU_ROLL_SIGN`).

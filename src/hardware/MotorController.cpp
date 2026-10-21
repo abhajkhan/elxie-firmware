@@ -17,6 +17,8 @@ void MotorController::begin()
 
 void MotorController::driveMotorA(int speed, bool forward)
 {
+    if (MOTOR_A_INVERT)
+        forward = !forward;
     digitalWrite(PIN_AIN1, forward ? HIGH : LOW);
     digitalWrite(PIN_AIN2, forward ? LOW : HIGH);
     analogWrite(PIN_PWMA, constrain(speed, 0, 255));
@@ -24,6 +26,8 @@ void MotorController::driveMotorA(int speed, bool forward)
 
 void MotorController::driveMotorB(int speed, bool forward)
 {
+    if (MOTOR_B_INVERT)
+        forward = !forward;
     digitalWrite(PIN_BIN1, forward ? HIGH : LOW);
     digitalWrite(PIN_BIN2, forward ? LOW : HIGH);
     analogWrite(PIN_PWMB, constrain(speed, 0, 255));

@@ -39,7 +39,11 @@ static bool g_paired = false;
 // (top = battery side, bottom = to GND). 0 / 1 means "no extra divider".
 #define BATT_R_TOP    100.0f
 #define BATT_R_BOTTOM 100.0f
-static const float kBattScale = 3.2f / 1023.0f * (BATT_R_TOP + BATT_R_BOTTOM) / BATT_R_BOTTOM;
+// The D1 Mini's own 220k/100k on A0 loads the bottom resistor with 320k (same maths as
+// REMOTE_espnow.ino): Vbat = V_A0 * (top + bottom||320k) / (bottom||320k).
+static const float kA0Load = 320.0f;
+static const float kBattLow = BATT_R_BOTTOM * kA0Load / (BATT_R_BOTTOM + kA0Load);
+static const float kBattScale = 3.2f / 1023.0f * (BATT_R_TOP + kBattLow) / kBattLow;
 
 // ---------------------------------------------------------------- packets (= robot's)
 typedef struct __attribute__((packed)) {
@@ -371,7 +375,7 @@ static void testBattery() {
   } else if (v < 3.3f || v > 4.35f) {
     result("battery", ST_WARN, "%.2f V (raw %d): outside 3.3-4.35 V, charge or check the divider", v, raw);
   } else {
-    result("battery", ST_PASS, "%.2f V (raw %d)", v, raw);
+    result("battery", ST_PASS, "%.2f V = %u%% (raw %d)", v, elxLiIonPercent((uint16_t)(v * 1000)), raw);
   }
 }
 

@@ -1,4 +1,6 @@
 #include "blocks.h"
+#include <math.h>
+#include <string.h>
 
 #include "../communication/EspNowManager.h"
 #include "../core/RobotController.h"
@@ -29,6 +31,18 @@ static bool g_active = false;
 static uint32_t g_lastTick = 0;
 static uint32_t g_idleSince = 0;  // app gone and no program running since...
 
+// ---- Factory checks over USB serial (tilt test, live sensor print)
+enum TiltStep : uint8_t { TILT_OFF, TILT_LEVEL, TILT_NOSE, TILT_RIGHT };
+static TiltStep g_tiltStep = TILT_OFF;
+static uint32_t g_tiltStepAt = 0;
+static float g_tiltSum[2];  // sums of raw accel X, Y over the end of the current step
+static uint16_t g_tiltN = 0;
+static float g_tiltAvg[3][2];  // [level, nose, right][x, y]
+static bool g_live = false;
+static uint32_t g_livePrintAt = 0;
+static const uint32_t kTiltStepMs = 6000;    // time per pose
+static const uint32_t kTiltSampleMs = 2000;  // averaged over the last 2 s of each pose
+
 static void enter() {
   if (g_active) return;
   Serial.println("[Blocks] Blocks mode on");
@@ -46,6 +60,8 @@ static void leave() {
   if (!g_active) return;
   Serial.println("[Blocks] Blocks mode off");
   g_active = false;
+  g_tiltStep = TILT_OFF;
+  g_live = false;
   app::stopProgram();  // also stops motion, sound and light effects
   motors::release();
   sound.stop();
@@ -59,6 +75,112 @@ static void leave() {
 static void onCommand(uint8_t) {
   if (EspNowManager::getInstance().isPairing()) return;  // the pairing screen keeps the robot
   enter();
+}
+
+// ------------------------------------------------------------------ factory checks
+static const char* const kTiltPrompt[] = {"", "keep it LEVEL", "tip NOSE DOWN", "tip RIGHT side down"};
+
+static void tiltStart(TiltStep step) {
+  g_tiltStep = step;
+  g_tiltStepAt = millis();
+  g_tiltSum[0] = g_tiltSum[1] = 0;
+  g_tiltN = 0;
+  face.message("Tilt test", kTiltPrompt[step]);
+  Serial.printf("TILT STEP %d: %s (about 45 degrees) and hold for %lu s\n", (int)step, kTiltPrompt[step],
+                (unsigned long)(kTiltStepMs / 1000));
+}
+
+// Raw axis that moved most between two poses: 0 = X, 1 = Y. *sign = direction, *g = size.
+static int tiltAxis(const float from[2], const float to[2], int* sign, float* g) {
+  float dx = to[0] - from[0], dy = to[1] - from[1];
+  int axis = fabsf(dx) >= fabsf(dy) ? 0 : 1;
+  float d = axis ? dy : dx;
+  *sign = d >= 0 ? 1 : -1;
+  *g = fabsf(d);
+  return axis;
+}
+
+static void tiltFinish() {
+  g_tiltStep = TILT_OFF;
+  int sN, sR;
+  float gN, gR;
+  int axN = tiltAxis(g_tiltAvg[0], g_tiltAvg[1], &sN, &gN);
+  int axR = tiltAxis(g_tiltAvg[0], g_tiltAvg[2], &sR, &gR);
+  Serial.printf("TILT RAW level x=%.2f y=%.2f  nose x=%.2f y=%.2f  right x=%.2f y=%.2f (g)\n", g_tiltAvg[0][0],
+                g_tiltAvg[0][1], g_tiltAvg[1][0], g_tiltAvg[1][1], g_tiltAvg[2][0], g_tiltAvg[2][1]);
+  if (gN < 0.25f || gR < 0.25f || axN == axR) {
+    Serial.println("TILT RESULT UNCLEAR: tip further (about 45 degrees) and hold still, then run tilttest again");
+    face.message("Tilt test", "unclear, try again");
+    return;
+  }
+  // pitch = atan2(-a, ..) on the nose axis -> positive (nose down) when that axis goes negative;
+  // roll  = atan2(a, z)  on the side axis -> positive (right down) when that axis goes positive.
+  const int swap = axN == 1 ? 1 : 0;
+  const int pitchSign = sN < 0 ? 1 : -1;
+  const int rollSign = sR > 0 ? 1 : -1;
+  const bool same = swap == IMU_SWAP_PITCH_ROLL && pitchSign == IMU_PITCH_SIGN && rollSign == IMU_ROLL_SIGN;
+  Serial.printf("TILT RESULT IMU_SWAP_PITCH_ROLL %d  IMU_PITCH_SIGN (%+d)  IMU_ROLL_SIGN (%+d)  -> %s\n", swap,
+                pitchSign, rollSign, same ? "MATCHES blocks_config.h" : "CHANGE blocks_config.h");
+  face.message("Tilt test", same ? "settings OK" : "change settings");
+}
+
+static void serialChecksTick(uint32_t now) {
+  const SensorState& s = sensors.state();
+  if (g_tiltStep != TILT_OFF) {
+    uint32_t t = now - g_tiltStepAt;
+    if (t >= kTiltStepMs - kTiltSampleMs) {
+      g_tiltSum[0] += s.accelX;
+      g_tiltSum[1] += s.accelY;
+      g_tiltN++;
+    }
+    if (t >= kTiltStepMs) {
+      const int i = (int)g_tiltStep - 1;
+      g_tiltAvg[i][0] = g_tiltN ? g_tiltSum[0] / g_tiltN : s.accelX;
+      g_tiltAvg[i][1] = g_tiltN ? g_tiltSum[1] / g_tiltN : s.accelY;
+      if (g_tiltStep == TILT_RIGHT) tiltFinish();
+      else tiltStart((TiltStep)(g_tiltStep + 1));
+    }
+  }
+  if (g_live && (int32_t)(now - g_livePrintAt) >= 0) {
+    g_livePrintAt = now + 250;
+    Serial.printf("TILT pitch %.0f roll %.0f | accel x %.2f y %.2f z %.2f | heading %.0f mag %d %d %d%s\n", s.pitch,
+                  s.roll, s.accelX, s.accelY, s.accelZ, s.heading, s.magRaw[0], s.magRaw[1], s.magRaw[2],
+                  sensors.magCalibration().valid ? "" : " (compass not calibrated)");
+  }
+}
+
+bool serialCommand(const char* line) {
+  const bool known = !strcmp(line, "calmag") || !strcmp(line, "compass?") || !strcmp(line, "tilttest") ||
+                     !strcmp(line, "tilt");
+  if (!known) return false;
+  if (EspNowManager::getInstance().isPairing()) {
+    Serial.println("BUSY pairing");
+    return true;
+  }
+  if (!strcmp(line, "compass?")) {
+    const MagCalibration& mc = sensors.magCalibration();
+    Serial.printf("COMPASS %s %s x %d..%d y %d..%d z %d..%d\n", sensors.state().magOk ? "found" : "missing",
+                  mc.valid ? "calibrated" : "not-calibrated", mc.min[0], mc.max[0], mc.min[1], mc.max[1], mc.min[2],
+                  mc.max[2]);
+    return true;
+  }
+  enter();  // the checks run in Blocks mode (block engine owns sensors and motors)
+  if (!strcmp(line, "calmag")) {
+    if (app::startMagCalibration()) Serial.printf("MAGCAL START spinning for %d s\n", MAG_CAL_MS / 1000);
+    else Serial.println("MAGCAL FAILED (no magnetometer found)");
+  } else if (!strcmp(line, "tilttest")) {
+    if (!sensors.state().imuOk) Serial.println("TILT RESULT FAILED (no MPU6050 found)");
+    else {
+      app::stopProgram();
+      g_live = false;
+      tiltStart(TILT_LEVEL);
+    }
+  } else {  // "tilt": live print on/off
+    g_live = !g_live;
+    g_livePrintAt = 0;
+    Serial.println(g_live ? "TILT LIVE ON (send tilt again to stop)" : "TILT LIVE OFF");
+  }
+  return true;
 }
 
 void begin(LedController& leds, DisplayController& display, RobotController& robot) {
@@ -110,8 +232,10 @@ void loop() {
   lights.update();
   vmlink::periodic();    // telemetry / trace
 
+  serialChecksTick(now);
+
   // App closed and nothing running: after 3 s give the robot back to the games.
-  const bool busy = app::running() || app::magCalibrating() || sensors.calibrating();
+  const bool busy = app::running() || app::magCalibrating() || sensors.calibrating() || g_tiltStep != TILT_OFF || g_live;
   if (vmlink::bleConnected() || busy) {
     g_idleSince = 0;
   } else if (!g_idleSince) {

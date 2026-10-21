@@ -37,14 +37,16 @@
 // TB6612FNG: one PWM + two direction pins per motor, STBY must be high.
 // Motor A = left, motor B = right (CHECK: swap if the robot turns the wrong way).
 #define PIN_MOTOR_STBY     14
-#define PIN_MOTOR_L_PWM    18      // PWMA
-#define PIN_MOTOR_L_IN1    19      // AIN1  (note: GPIO19/20 are the S3's native USB pins)
-#define PIN_MOTOR_L_IN2    20      // AIN2
-#define PIN_MOTOR_R_PWM    21      // PWMB
-#define PIN_MOTOR_R_IN1    47      // BIN1
-#define PIN_MOTOR_R_IN2    48      // BIN2
-#define MOTOR_L_INVERT     0
-#define MOTOR_R_INVERT     1       // mirrored mounting: one side usually needs inverting
+// Same wiring as the Home firmware (src/config/BoardConfig.h): motor B = LEFT wheel,
+// motor A = RIGHT wheel, and the left motor is wired reversed (MOTOR_B_INVERT 1).
+#define PIN_MOTOR_L_PWM    21      // PWMB
+#define PIN_MOTOR_L_IN1    47      // BIN1
+#define PIN_MOTOR_L_IN2    48      // BIN2
+#define PIN_MOTOR_R_PWM    18      // PWMA
+#define PIN_MOTOR_R_IN1    19      // AIN1  (note: GPIO19/20 are the S3's native USB pins)
+#define PIN_MOTOR_R_IN2    20      // AIN2
+#define MOTOR_L_INVERT     1       // = MOTOR_B_INVERT in the Home firmware
+#define MOTOR_R_INVERT     0       // = MOTOR_A_INVERT in the Home firmware
 #define MOTOR_PWM_FREQ     20000   // Hz (inaudible)
 #define MOTOR_PWM_BITS     10      // duty 0..1023
 #define MOTOR_MIN_DUTY     0.28f   // fraction of full duty where wheels start turning

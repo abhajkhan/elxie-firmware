@@ -21,6 +21,13 @@
 #define PIN_BIN1 47
 #define PIN_BIN2 48
 
+// Wheel direction. Motor A = RIGHT wheel, motor B = LEFT wheel.
+// Set to 1 if that wheel turns backwards when driven forward. Used by the games,
+// RC, the pet moves (MotorController) and Elxie Blocks (src/blocks/motors.cpp).
+// Oct 2026 robots: the left motor is wired reversed (Forward made the robot spin left).
+#define MOTOR_A_INVERT 0
+#define MOTOR_B_INVERT 1
+
 constexpr int DEFAULT_SPEED = 180;
 
 // ========================================
@@ -70,6 +77,12 @@ constexpr uint8_t BOTTOM_CH[4] = {10, 8, 12, 13}; // FL, FR, RL, RR
 // BATTERY SENSE PIN & THRESHOLDS
 // ========================================
 #define PIN_BATTERY 7
+// 2 x 18650 in series (8.4 V full, 6.6 V empty). Divider: pack+ --2k-- GPIO7 --1k-- GND,
+// so the pin sees 1/3 of the pack (2.8 V when full).
+#define BATT_CELLS 2
+#define BATT_R_TOP_OHM 2000.0f    // battery side
+#define BATT_R_BOTTOM_OHM 1000.0f // to GND
+#define BATT_CAL 1.000f           // multimeter / reading, if a robot reads off
 #define BATT_WARN_PCT 35
 #define BATT_CLEAR_PCT 40
 #define BATT_SAMPLE_MS 2000UL
@@ -106,6 +119,10 @@ constexpr uint8_t BACK_PIXELS[] = {13, 12};
 // ========================================
 // ESP-NOW CONFIGURATION
 // ========================================
+// 1 = a robot that was never paired ignores every remote (pair each set at the factory
+//     with PAIR_ROBOT_AND_REMOTE.bat). Stops one stray remote driving someone else's robot.
+// 0 = an unpaired robot listens to REMOTE_MAC below (development only).
+#define REMOTE_REQUIRE_PAIRING 1
 constexpr uint8_t REMOTE_MAC[6] = {0x18, 0xfe, 0x34, 0xf5, 0xe8, 0x66};
 
 #endif // BOARD_CONFIG_H

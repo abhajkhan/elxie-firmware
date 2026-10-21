@@ -19,9 +19,12 @@ Firmware and factory tools for **Elxie**, the Elxtron Labs smart toy robot (ESP3
 
 | File | Does |
 |---|---|
+| `FACTORY_SETUP.bat` | **Factory station**: one robot + remote set, step by step (remote firmware, robot firmware, pairing, compass), recorded in `logs\factory_record.csv` |
 | `BUILD_HOME_FIRMWARE.bat` | Builds the robot firmware |
 | `FLASH_HOME_FIRMWARE.bat` | Builds and flashes the robot firmware, shows the boot log |
 | `CHECK_ROBOT.bat` | Reads the robot's flash chip and a 25 s boot log into `logs\` |
+| `CALIBRATE_COMPASS.bat` | Compass calibration, once per robot (it spins for 6 s) |
+| `TILT_TEST.bat` | Checks the tilt (pitch/roll) settings on a robot |
 | `TESTBENCH.bat` / `TESTBENCH_UI.bat` | Robot hardware testbench, with or without the dashboard |
 | `FLASH_REMOTE_FIRMWARE.bat` | Flashes the hand remote |
 | `REMOTE_TESTBENCH.bat` | Remote hardware testbench and dashboard |

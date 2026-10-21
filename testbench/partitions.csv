@@ -1,5 +1,10 @@
-# Name,   Type, SubType, Offset,   Size
-nvs,      data, nvs,     0x9000,   0x6000
-phy_init, data, phy,     0xf000,   0x1000
-factory,  app,  factory, 0x10000,  0x280000
-storage,  data, spiffs,  0x290000, 0x160000
+# Same layout as the Home firmware (platformio.ini: app3M_fat9M_16MB.csv), so flashing the
+# testbench never touches the Home firmware's data: NVS (remote pairing) and the FFat
+# partition (Blocks programs, compass and line calibration).
+# Name,   Type, SubType,  Offset,   Size
+nvs,      data, nvs,      0x9000,   0x5000
+otadata,  data, ota,      0xe000,   0x2000
+app0,     app,  ota_0,    0x10000,  0x300000
+app1,     app,  ota_1,    0x310000, 0x300000
+ffat,     data, fat,      0x610000, 0x9E0000
+coredump, data, coredump, 0xFF0000, 0x10000

@@ -113,6 +113,7 @@ void tick(uint32_t dtMs) {
       g_magCalEnd = 0;
       motion.stop();
       sensors.cancelMagCalibration();
+      Serial.println("MAGCAL CANCELLED");
       face.message("Cancelled", "");
       g_menuAt = now + 1000;
       return;
@@ -122,6 +123,12 @@ void tick(uint32_t dtMs) {
       motion.stop();
       bool ok = sensors.endMagCalibration() &&
                 storage::saveBlob("/magcal.bin", &sensors.magCalibration(), sizeof(MagCalibration));
+      const MagCalibration& mc = sensors.magCalibration();
+      if (ok)
+        Serial.printf("MAGCAL OK x %d..%d y %d..%d z %d..%d field %.0f\n", mc.min[0], mc.max[0], mc.min[1],
+                      mc.max[1], mc.min[2], mc.max[2], mc.baseline);
+      else
+        Serial.println("MAGCAL FAILED (spin on a flat floor, away from metal and magnets)");
       face.message(ok ? "Compass ready" : "Try again", ok ? "" : "spin on a flat floor");
       sound.playEffect(ok ? sfx::LEVELUP : sfx::ERROR);
       g_menuAt = now + 1500;

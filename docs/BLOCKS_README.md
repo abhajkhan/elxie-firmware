@@ -43,7 +43,7 @@ New, in `src/blocks/`:
   - `sound` uses `tone()`.
   - `lights` uses LedController's `Adafruit_NeoPixel`.
   - `face` draws with U8g2 into RAM and sends through DisplayController's `Adafruit_SSD1306`.
-  - `motors` uses `analogWrite`. Like the games, motor B is the left wheel and motor A the right wheel.
+  - `motors` uses `analogWrite`. Like the games, motor B is the left wheel and motor A the right wheel. Wheel direction comes from `MOTOR_A_INVERT` / `MOTOR_B_INVERT` in `src/config/BoardConfig.h` (the left motor is reversed on the Oct 2026 robots).
   - `storage` uses FFat at `/ffat/blocks`. The first boot formats the partition.
   - `remote_link` reads the ESP8266 remote's 7-byte packet from `EspNowManager`.
 - `blocks.cpp` is the glue: begin, loop at 100 Hz, and entering and leaving Blocks mode.
@@ -69,11 +69,27 @@ Small edits to the team's files, each marked with a comment:
 
 Block settings are in `src/blocks/blocks_config.h`. Game settings stay in `src/config/BoardConfig.h`.
 
-The compass is set from the measured log: `MAG_Y_SIGN -1` and `MAG_HEADING_OFFSET 83`. Each robot still needs one "Compass (robot spins)" calibration. It is saved in `/ffat/blocks/magcal.bin`.
+The compass is set from the measured log: `MAG_Y_SIGN -1` and `MAG_HEADING_OFFSET 83`. Each robot still needs one compass calibration, done at the factory with **CALIBRATE_COMPASS.bat** (or "Compass (robot spins)" in the app). It is saved in `/ffat/blocks/magcal.bin` and survives reflashing.
+
+The tilt blocks use `IMU_SWAP_PITCH_ROLL`, `IMU_PITCH_SIGN` and `IMU_ROLL_SIGN`. **TILT_TEST.bat** checks them on a real robot: hold the robot level, then nose down, then right side down, and it prints the right values.
+
+## Factory checks over USB serial (115200)
+
+| Command | What it does |
+|---|---|
+| `calmag` | Compass calibration: the robot spins in place for 6 s, then prints `MAGCAL OK ...` or `MAGCAL FAILED` and saves |
+| `compass?` | Prints `COMPASS found/missing calibrated/not-calibrated` and the stored ranges |
+| `tilttest` | Guided tilt test (level, nose down, right side down, 6 s each). Prints `TILT RESULT IMU_SWAP_PITCH_ROLL .. IMU_PITCH_SIGN .. IMU_ROLL_SIGN .. -> MATCHES/CHANGE blocks_config.h` |
+| `tilt` | Live pitch, roll, raw accel and compass heading, 4 times a second. Send `tilt` again to stop. |
+| `battery?` | Prints `BATTERY robot <V> V <%>% remote <V> V <%>%` (`remote none` if the remote is not reporting) |
+
+These switch the robot into Blocks mode while they run. Holding remote A + B or the touch pad cancels the compass spin.
 
 ## Remote pairing (Stage 5)
 
 Each robot listens to one hand remote, and each remote talks to one robot. Both remember the pairing in flash, so it survives power-off and reflashing the app.
+
+**Unpaired means no control.** A robot that was never paired ignores every remote, and a remote that was never paired sends nothing: it gives two long buzzes at power-on and on every button press. So a stray remote can never drive someone else's robot. Pair every set at the factory. (For development, `REMOTE_REQUIRE_PAIRING 0` in `BoardConfig.h` and `REQUIRE_PAIRING 0` in `REMOTE_espnow.ino` bring back the old fixed addresses.)
 
 **How to pair**
 
@@ -92,8 +108,8 @@ Each robot listens to one hand remote, and each remote talks to one robot. Both 
 |---|---|
 | `pair` | Start pairing mode |
 | `cancel` | Stop pairing mode |
-| `unpair` | Forget the paired remote and go back to `REMOTE_MAC` in `BoardConfig.h` |
-| `remote?` | Prints `REMOTE <mac> paired\|default robot <robot mac>` |
+| `unpair` | Forget the paired remote. The robot then ignores all remotes until it is paired again. |
+| `remote?` | Prints `REMOTE <mac> paired robot <robot mac>`, or `REMOTE none unpaired robot <robot mac>` |
 
 **Bluetooth JSON**
 
