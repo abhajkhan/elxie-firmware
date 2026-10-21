@@ -1,16 +1,14 @@
 #include "BatteryManager.h"
 
-#include "../communication/ElxiePairingProtocol.h"  // elxLinearPercent()
+#include "../communication/ElxiePairingProtocol.h"  // elxLiIonPercent()
 #include "BatteryLevel.h"
 
 static uint16_t g_packMv = 0;
 static uint8_t g_percent = 0;
-static uint16_t g_pinMv = 0;
 
 namespace battery {
 uint16_t packMv() { return g_packMv; }
 uint8_t percent() { return g_percent; }
-uint16_t pinMv() { return g_pinMv; }
 }  // namespace battery
 
 void BatteryManager::begin()
@@ -23,7 +21,7 @@ void BatteryManager::begin()
     Serial.printf("[Battery] %.2f V (%d cells), %d%%\n", packMv / 1000.0f, BATT_CELLS, batteryPercent);
 }
 
-// Pack voltage from the 100k/47k divider (x BATT_CAL), with the ESP32's factory-calibrated ADC
+// Pack voltage from the 2k/1k divider, with the ESP32's factory-calibrated ADC
 // (analogReadMilliVolts). Smoothed, so motor current dips don't make it jump.
 int BatteryManager::readPercentage()
 {
@@ -34,8 +32,7 @@ int BatteryManager::readPercentage()
     const float mv = pinMv * (BATT_R_TOP_OHM + BATT_R_BOTTOM_OHM) / BATT_R_BOTTOM_OHM * BATT_CAL;
     packMvSmooth = packMvSmooth <= 0 ? mv : packMvSmooth * 0.8f + mv * 0.2f;
     packMv = (uint16_t)(packMvSmooth + 0.5f);
-    const uint8_t pct = elxLinearPercent(packMv, BATT_PACK_FULL_MV, BATT_PACK_LOW_MV, BATT_PACK_LOW_PCT);
-    g_pinMv = (uint16_t)(pinMv + 0.5f);
+    const uint8_t pct = elxLiIonPercent((uint16_t)(packMv / BATT_CELLS));
     g_packMv = packMv;
     g_percent = pct;
     return pct;
