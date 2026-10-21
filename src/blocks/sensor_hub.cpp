@@ -1,5 +1,7 @@
 #include "sensor_hub.h"
 
+#include "../hardware/BatteryLevel.h"
+
 #include <math.h>
 
 #include "blocks_config.h"
@@ -37,7 +39,6 @@ void SensorHub::begin() {
   if (PIN_IR_EMITTER >= 0) hal::pinOutput(PIN_IR_EMITTER, 1);
   hal::adcAttach(PIN_MUX_SIG);
   if (PIN_MIC >= 0) hal::adcAttach(PIN_MIC);
-  if (PIN_BATTERY >= 0) hal::adcAttach(PIN_BATTERY);
   for (int i = 0; i < 16; ++i) {
     cal_.white[i] = IR_RAW_WHITE;
     cal_.black[i] = IR_RAW_BLACK;
@@ -365,14 +366,7 @@ void SensorHub::update(uint32_t dtMs) {
   }
   readMic();
   pollUltrasonic();
-  if (PIN_BATTERY >= 0 && ++battDiv_ >= 50) {  // twice a second
-    battDiv_ = 0;
-    float v = hal::adcRead(PIN_BATTERY) / 4095.0f * 3.1f * BATT_DIVIDER;  // ~3.1 V full scale at 12 dB
-    float pct = (v - BATT_EMPTY_V) / (BATT_FULL_V - BATT_EMPTY_V) * 100.0f;
-    float clamped = constrain(pct, 0.0f, 100.0f);
-    battSmooth_ = battSmooth_ < 0 ? clamped : battSmooth_ * 0.9f + clamped * 0.1f;
-    s_.batteryPct = (uint8_t)battSmooth_;
-  }
+  s_.batteryPct = battery::percent();  // measured by BatteryManager (src/hardware)
   for (uint8_t p = 0; p < TOUCH_PAD_COUNT; ++p) s_.touchHeldMs[p] = s_.touch[p] ? s_.touchHeldMs[p] + dtMs : 0;
 }
 

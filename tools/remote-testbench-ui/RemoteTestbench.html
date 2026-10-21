@@ -158,8 +158,8 @@ label.inl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut
       </div>
       <div class="meter"><i id="battBar"></i></div>
       <div class="calgrid">
-        <span>Divider top</span><input class="btn num" id="rTop" type="number" min="0" step="1" value="0"><span>k&Omega;</span>
-        <span>Divider bottom</span><input class="btn num" id="rBot" type="number" min="1" step="1" value="1"><span>k&Omega;</span>
+        <span>Divider top</span><input class="btn num" id="rTop" type="number" min="0" step="1" value="100"><span>k&Omega;</span>
+        <span>Divider bottom</span><input class="btn num" id="rBot" type="number" min="1" step="1" value="100"><span>k&Omega;</span>
         <span>Multimeter reads</span><input class="btn num" id="meterV" type="number" min="0" step="0.01" placeholder="volts"><button class="btn" id="btnCal">Calibrate</button>
       </div>
       <div class="sub" id="battNote" style="margin-top:4px">Enter the divider resistors, or measure the battery and press Calibrate.</div>
@@ -285,7 +285,23 @@ function battFactor() {
   const cal = parseFloat(localStorage.getItem('elxRemoteBattCal') || '');
   if (cal > 0) return { f: cal, how: 'multimeter calibration' };
   const top = +$('rTop').value || 0, bot = +$('rBot').value || 1;
-  return { f: 3.2 / 1023 * (top + bot) / bot, how: top ? `divider ${top} k / ${bot} k` : 'no divider entered (voltage at A0 only)' };
+  // the D1 Mini's own 220k + 100k on A0 (320k) loads the bottom resistor (same maths as the firmware)
+  const low = bot * 320 / (bot + 320);
+  return { f: 3.2 / 1023 * (top + low) / low, how: top ? `divider ${top} k / ${bot} k (with the D1 Mini's 320 k load)` : 'no divider entered (voltage at A0 only)' };
+}
+// One Li-ion cell: % from volts (same table as elxLiIonPercent in ElxiePairingProtocol.h)
+function liIonPct(v) {
+  const mv = [3300, 3500, 3600, 3680, 3730, 3770, 3800, 3830, 3870, 3920, 3980, 4060, 4200];
+  const pc = [0, 3, 6, 10, 15, 25, 35, 45, 55, 65, 75, 87, 100];
+  const m = v * 1000;
+  if (m <= mv[0]) return 0;
+  if (m >= mv[mv.length - 1]) return 100;
+  for (let i = 1; i < mv.length; i++) if (m <= mv[i]) return Math.round(pc[i - 1] + (pc[i] - pc[i - 1]) * (m - mv[i - 1]) / (mv[i] - mv[i - 1]));
+  return 100;
+}
+function battFactorNoCal() {
+  const top = +$('rTop').value || 0, bot = +$('rBot').value || 1, low = bot * 320 / (bot + 320);
+  return 3.2 / 1023 * (top + low) / low;
 }
 let lastBatRaw = 0;
 function showBattery(raw) {
@@ -294,10 +310,11 @@ function showBattery(raw) {
   const v = raw * f;
   $('battV').textContent = v.toFixed(2);
   $('battRaw').textContent = `raw ${raw} · ${(raw * 3.2 / 1023).toFixed(2)} V at A0`;
-  const pct = Math.max(0, Math.min(100, (v - 3.3) / (4.2 - 3.3) * 100));
+  const pct = liIonPct(v);
   $('battBar').style.width = pct + '%';
   $('battBar').style.background = pct < 20 ? 'var(--fail)' : pct < 45 ? 'var(--warn)' : 'var(--pass)';
-  $('battNote').textContent = `Using ${how}. Factor ${f.toFixed(5)} V per count.`;
+  const calNote = (() => { try { return localStorage.getItem('elxRemoteBattCal'); } catch (e) { return null; } })() ? ` For the firmware: BATT_CAL = ${(f / battFactorNoCal()).toFixed(3)} in REMOTE_espnow.ino.` : '';
+  $('battNote').textContent = `${pct}% charged. Using ${how}. Factor ${f.toFixed(5)} V per count.${calNote}`;
 }
 
 // ------------------------------------------------------------ live data

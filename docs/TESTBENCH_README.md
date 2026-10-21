@@ -135,6 +135,12 @@ The separate tools below do the same steps one at a time.
 3. Double-click **CALIBRATE_COMPASS.bat** and press Enter. The robot spins in place for 6 s.
 4. The window shows `COMPASS_RESULT=OK` and the robot shows "Compass ready". The calibration is saved on the robot and survives reflashing. If it shows `FAILED`, move away from metal and run it again.
 
+## Battery readings
+
+- **Robot** (2 x 18650 in series, pack+ --2k-- GPIO7 --1k-- GND): pack voltage = pin voltage x 3, read with the ESP32's factory-calibrated ADC. Percent comes from a Li-ion curve on the per-cell voltage (pack / 2).
+- **Remote** (one 18650, cell+ --100k-- mux channel 4 --100k-- GND): the D1 Mini's own 220k + 100k on A0 loads the bottom resistor, so cell voltage = A0 voltage x 2.31 (not x 2). The remote sends its voltage and percent to its paired robot every 2 s.
+- Check with a multimeter: send `battery?` over USB to the robot (it prints both batteries). If a reading is off, set `BATT_CAL` (multimeter / reading) in `src/config/BoardConfig.h` for the robot, or in `remote/firmware/src/REMOTE_espnow.ino` for the remote. The remote dashboard's **Calibrate** button prints the remote's `BATT_CAL`.
+
 ## Tilt test (pitch and roll settings)
 
 Run it on one robot of each hardware build; the result applies to all robots with the same board.

@@ -10,7 +10,8 @@ class BatteryManager
 {
 public:
     void begin();
-    int readPercentage();
+    int readPercentage();      // takes a new reading, returns 0..100
+    uint16_t getMillivolts() const { return packMv; }
     void service(BuzzerController &buzzer);
 
     int getPercent() const { return batteryPercent; }
@@ -19,6 +20,8 @@ public:
 private:
     int batteryPercent = 100;
     bool batteryLow = false;
+    uint16_t packMv = 0;
+    float packMvSmooth = 0;
 
     unsigned long lastBattSampleMs = 0;
     unsigned long lastBattAlertMs = 0;

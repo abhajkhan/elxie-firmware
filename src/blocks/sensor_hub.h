@@ -111,8 +111,6 @@ class SensorHub {
   float magSum_ = 0;
   uint32_t magN_ = 0;
   float soundSmooth_ = 0;
-  uint8_t battDiv_ = 0;
-  float battSmooth_ = -1;
   float lastLinePos_ = 0;
 };
 

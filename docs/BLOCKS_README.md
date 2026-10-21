@@ -81,6 +81,7 @@ The tilt blocks use `IMU_SWAP_PITCH_ROLL`, `IMU_PITCH_SIGN` and `IMU_ROLL_SIGN`.
 | `compass?` | Prints `COMPASS found/missing calibrated/not-calibrated` and the stored ranges |
 | `tilttest` | Guided tilt test (level, nose down, right side down, 6 s each). Prints `TILT RESULT IMU_SWAP_PITCH_ROLL .. IMU_PITCH_SIGN .. IMU_ROLL_SIGN .. -> MATCHES/CHANGE blocks_config.h` |
 | `tilt` | Live pitch, roll, raw accel and compass heading, 4 times a second. Send `tilt` again to stop. |
+| `battery?` | Prints `BATTERY robot <V> V <%>% remote <V> V <%>%` (`remote none` if the remote is not reporting) |
 
 These switch the robot into Blocks mode while they run. Holding remote A + B or the touch pad cancels the compass spin.
 

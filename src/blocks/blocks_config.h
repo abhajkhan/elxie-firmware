@@ -118,10 +118,7 @@
 #define LOUD_DEFAULT       60
 
 // ---------------------------------------------------------------- Battery
-#define PIN_BATTERY        7       // ADC1 (divider ratio CHECK)
-#define BATT_DIVIDER       2.0f    // V_batt = V_pin * BATT_DIVIDER
-#define BATT_EMPTY_V       3.3f
-#define BATT_FULL_V        4.2f
+// Battery: measured by the game firmware's BatteryManager (BATT_* in src/config/BoardConfig.h).
 
 // ---------------------------------------------------------------- Buzzer / LEDs
 #define PIN_BUZZER         13      // passive piezo

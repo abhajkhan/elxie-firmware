@@ -995,7 +995,10 @@ ESP32 → Mobile:
       "detected": false
     },
     "battery": {
-      "robot": 87
+      "robot": 84,
+      "robotV": 8.12,
+      "remote": 80,
+      "remoteV": 4.01
     },
     "touch": {
       "event": "none"
@@ -1003,6 +1006,18 @@ ESP32 → Mobile:
   }
 }
 ```
+
+### Battery fields
+
+| Field | Meaning |
+|---|---|
+| `battery.robot` | Robot battery 0..100 %, from the 2-cell pack voltage on a Li-ion curve |
+| `battery.robotV` | Robot pack voltage in volts (about 8.4 full, 6.6 empty) |
+| `battery.remote` | Paired hand remote's battery 0..100 %. **Missing** when no paired remote has reported in the last 10 s (remote off, out of range, or not paired) |
+| `battery.remoteV` | Remote cell voltage in volts (about 4.2 full, 3.3 empty). Missing together with `remote` |
+
+The app should show "–" (not 0 %) for the remote when `battery.remote` is missing.
+The robot sounds its own low-battery beep below 35 % (`BATT_WARN_PCT`).
 
 ### Telemetry rules
 

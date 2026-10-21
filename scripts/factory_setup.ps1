@@ -28,7 +28,7 @@ function RunScript($file, $arguments) {
 $rec = [ordered]@{
     date = (Get-Date -Format "yyyy-MM-dd HH:mm"); set = ""; robot_mac = ""; remote_mac = "";
     remote_flashed = "skipped"; robot_flashed = "skipped"; boot = "?"; compass_chip = "?";
-    paired = "no"; compass_cal = "no"; result = "INCOMPLETE"; notes = ""
+    paired = "no"; compass_cal = "no"; robot_battery = ""; remote_battery = ""; result = "INCOMPLETE"; notes = ""
 }
 function Save {
     $line = ($rec.Values | ForEach-Object { '"' + ("$_" -replace '"', "'") + '"' }) -join ","
@@ -79,7 +79,7 @@ function ReadUntil($pattern, $seconds) {
     $end = (Get-Date).AddSeconds($seconds)
     while ((Get-Date) -lt $end) {
         try { $line = $sp.ReadLine().TrimEnd("`r") } catch [System.TimeoutException] { continue }
-        if ($line -match "^(PAIR|REMOTE|MAGCAL|COMPASS|BUSY)") { Write-Host "  $line" -ForegroundColor DarkCyan }
+        if ($line -match "^(PAIR|REMOTE|MAGCAL|COMPASS|BUSY|BATTERY)") { Write-Host "  $line" -ForegroundColor DarkCyan }
         if ($line -match $pattern) { return $line }
     }
     return $null
@@ -125,6 +125,12 @@ elseif ($doCal) {
     if ($res -match "^MAGCAL OK") { $rec.compass_cal = "ok"; Say "Compass calibrated and saved." "Green" }
     else { $rec.compass_cal = "FAILED"; Say "Compass calibration failed. Move away from metal and run CALIBRATE_COMPASS.bat." "Red" }
 } else { $rec.compass_cal = "ok (earlier)" }
+# battery (the remote reports every 2 s once it is paired and switched on)
+Start-Sleep -Seconds 3
+$sp.WriteLine("battery?")
+$bt = ReadUntil "^BATTERY " 3
+if ($bt -match "robot ([\d.]+) V (\d+)%") { $rec.robot_battery = "$($Matches[1]) V $($Matches[2])%" }
+if ($bt -match "remote ([\d.]+) V (\d+)%") { $rec.remote_battery = "$($Matches[1]) V $($Matches[2])%" } else { $rec.remote_battery = "not reporting" }
 $sp.Close()
 
 # ---------------------------------------------------------------- result

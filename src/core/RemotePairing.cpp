@@ -1,6 +1,7 @@
 #include "RemotePairing.h"
 
 #include "../blocks/blocks.h"
+#include "../hardware/BatteryLevel.h"
 #include "../communication/BleManager.h"
 #include "../communication/EspNowManager.h"
 #include "../config/BoardConfig.h"
@@ -166,6 +167,16 @@ namespace pairing
                 forget();
             else if (!strcmp(serialLine, "cancel"))
                 cancel();
+            else if (!strcmp(serialLine, "battery?"))
+            {
+                uint8_t rp;
+                uint16_t rmv;
+                Serial.printf("BATTERY robot %.2f V %u%%", battery::packMv() / 1000.0f, battery::percent());
+                if (radio().remoteBattery(rp, rmv))
+                    Serial.printf(" remote %.2f V %u%%\n", rmv / 1000.0f, rp);
+                else
+                    Serial.println(" remote none");
+            }
             else if (blocks::serialCommand(serialLine))
                 ;  // calmag, compass?, tilttest, tilt (Blocks factory checks)
             else if (!strcmp(serialLine, "remote?"))

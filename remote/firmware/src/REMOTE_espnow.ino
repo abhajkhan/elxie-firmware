@@ -48,6 +48,17 @@ const uint8_t CH_X = 7;
 const uint8_t CH_Y = 5;
 const uint8_t CH_BATT = 4; // battery divider (100k / 100k) on mux channel 4
 
+// ---- Battery (one 18650 cell) ----
+// cell+ --100k-- mux ch4 --100k-- GND, mux COM -> D1 Mini A0. The D1 Mini has its own
+// 220k/100k divider on A0 (A0 pin 3.2 V = raw 1023), which also LOADS our divider with
+// 320k. So the pin sees Vbat * (100k||320k) / (100k + 100k||320k) = 0.432 * Vbat.
+const float BATT_R_TOP = 100000.0f;    // battery side
+const float BATT_R_BOTTOM = 100000.0f; // to GND
+const float A0_LOAD = 320000.0f;       // D1 Mini's 220k + 100k from A0 to GND
+const float A0_FULL_SCALE_V = 3.2f;    // A0 pin volts at raw 1023
+const float BATT_CAL = 1.000f;         // multimeter / reading, if a unit reads off
+const unsigned long BATT_REPORT_MS = 2000;
+
 // ---- Direct digital inputs ----
 const uint8_t PIN_SW = D3;   // Joystick button
 const uint8_t PIN_BTN1 = D1; // Front button
@@ -203,6 +214,39 @@ void onRecv(uint8_t *mac, uint8_t *data, uint8_t len)
 
 bool prevBtn1 = false, prevBtn2 = false, prevSw = false;
 
+// ---- battery: millivolts of the cell (averaged, smoothed) ----
+float battMvSmooth = 0;
+uint16_t readBatteryMv()
+{
+  readMux(CH_BATT); // settle after switching the mux
+  long sum = 0;
+  for (int i = 0; i < 8; ++i)
+    sum += readMux(CH_BATT);
+  const float vPin = (sum / 8.0f) * A0_FULL_SCALE_V / 1023.0f;
+  const float rLow = BATT_R_BOTTOM * A0_LOAD / (BATT_R_BOTTOM + A0_LOAD);
+  const float vBat = vPin * (BATT_R_TOP + rLow) / rLow * BATT_CAL;
+  const float mv = vBat * 1000.0f;
+  battMvSmooth = battMvSmooth <= 0 ? mv : battMvSmooth * 0.7f + mv * 0.3f;
+  return (uint16_t)(battMvSmooth + 0.5f);
+}
+
+unsigned long lastBattReport = 0;
+void reportBattery()
+{
+  ElxRemoteStatus st;
+  memcpy(st.magic, "ELXS", 4);
+  st.version = ELX_PAIR_VERSION;
+  st.battMv = readBatteryMv();
+  st.battPct = elxLiIonPercent(st.battMv);
+  esp_now_send(MAINBOT_MAC, (uint8_t *)&st, sizeof st);
+  static unsigned long lastLog = 0;
+  if (millis() - lastLog > 30000)
+  {
+    lastLog = millis();
+    Serial.printf("BATTERY %u mV %u%%\n", st.battMv, st.battPct);
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -299,6 +343,11 @@ void setup()
   if (linked)
     esp_now_add_peer(MAINBOT_MAC, ESP_NOW_ROLE_COMBO, 1, NULL, 0);
 
+  {
+    const uint16_t mv = readBatteryMv();
+    Serial.printf("BATTERY %u mV %u%%\n", mv, elxLiIonPercent(mv));
+  }
+
   // boot buzz: one short = ready, two long = not paired
   if (linked)
     startHapticShort();
@@ -369,7 +418,13 @@ void loop()
     lastSend = millis();
   }
 
-  // ---- react to robot alert ----
+  // ---- battery status to the robot (it shows in the app) ----
+  if (millis() - lastBattReport >= BATT_REPORT_MS)
+  {
+    lastBattReport = millis();
+    reportBattery();
+  }
+
   // ---- react to robot alert (edge-triggered) ----
   static uint8_t prevAlert = ALERT_OK;
   if (alertFlag)

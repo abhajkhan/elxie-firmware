@@ -40,6 +40,8 @@ public:
     const uint8_t *getPeerMac() const { return peerMac; }
     bool hasStoredRemote() const { return storedRemote; }
     bool remoteAllowed() const;  // false: never paired and REMOTE_REQUIRE_PAIRING
+    // Paired remote's battery (its "ELXS" status packet, every 2 s). False if none in 10 s.
+    bool remoteBattery(uint8_t &pct, uint16_t &mv) const;
     static void macToString(const uint8_t *mac, char *out);  // "AA:BB:CC:DD:EE:FF"
     // Latest packet without consuming it (Elxie Blocks reads the remote too).
     bool peekLegacyCommand(LegacyRemoteCommandPacket &packetOut);
@@ -63,6 +65,9 @@ private:
 
     uint8_t defaultMac[6] = {0};
     bool storedRemote = false;
+    volatile uint16_t remoteBattMv = 0;
+    volatile uint8_t remoteBattPct = 0;
+    volatile uint32_t remoteBattMs = 0;
     volatile bool pairing = false;
     uint32_t pairingEndMs = 0;
     uint32_t lastBeaconMs = 0;

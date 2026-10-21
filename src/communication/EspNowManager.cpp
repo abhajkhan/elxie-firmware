@@ -108,6 +108,16 @@ void EspNowManager::onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int
             return;
     }
 
+    if (elxPairIs(data, len, "ELXS", sizeof(ElxRemoteStatus)))
+    {
+        ElxRemoteStatus st;
+        memcpy(&st, data, sizeof st);
+        mgr.remoteBattMv = st.battMv;
+        mgr.remoteBattPct = st.battPct > 100 ? 100 : st.battPct;
+        mgr.remoteBattMs = millis();
+        return;
+    }
+
     if (len == sizeof(LegacyRemoteCommandPacket))
     {
         portENTER_CRITICAL(&mgr.dataMux);
@@ -341,4 +351,13 @@ bool EspNowManager::getLatestInputEvent(InputEvent &eventOut)
 bool EspNowManager::remoteAllowed() const
 {
     return storedRemote || !REMOTE_REQUIRE_PAIRING;
+}
+
+bool EspNowManager::remoteBattery(uint8_t &pct, uint16_t &mv) const
+{
+    if (!remoteAllowed() || remoteBattMs == 0 || millis() - remoteBattMs > 10000)
+        return false;
+    pct = remoteBattPct;
+    mv = remoteBattMv;
+    return true;
 }
