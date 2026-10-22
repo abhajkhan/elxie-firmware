@@ -82,6 +82,7 @@ static void leave() {
 static void onCommand(uint8_t) {
   if (EspNowManager::getInstance().isPairing()) return;  // the pairing screen keeps the robot
   enter();
+  g_local = false;  // the app's Blocks page is talking: it is the app's session now
 }
 
 // ------------------------------------------------------------------ factory checks
@@ -283,8 +284,9 @@ void loop() {
 
   serialChecksTick(now);
 
-  // Remote B in "My Programs" (no app): back to the games.
-  if (app::takeLeaveRequest() && !vmlink::bleConnected() && !app::running()) {
+  // Remote B in "My Programs": back to the games, also with the app connected (if the app's
+  // Blocks page sends again, Blocks mode simply starts again).
+  if (app::takeLeaveRequest() && !app::running()) {
     leave();
     return;
   }
@@ -292,7 +294,8 @@ void loop() {
   // Nothing running and no app: give the robot back to the games, after 3 s, or after
   // LAUNCHER_TIMEOUT_MS without input when "My Programs" was opened on the robot.
   const bool busy = app::running() || app::magCalibrating() || sensors.calibrating() || g_tiltStep != TILT_OFF || g_live;
-  if (vmlink::bleConnected() || busy) {
+  // Opened on the robot (double tap / menu): the app being connected does not keep it open.
+  if ((vmlink::bleConnected() && !g_local) || busy) {
     g_idleSince = 0;
   } else if (!g_idleSince) {
     g_idleSince = now;

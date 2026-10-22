@@ -43,7 +43,7 @@ A program keeps running if the app disconnects.
 ## My Programs (on the robot, without the app)
 
 - Open: double tap the touch pad while the robot is idle, or choose **My Programs** in the remote menu.
-- Touch: **tap** = next program, **hold 1.5 s** = run it. Remote: joystick up/down = choose, **A** = run, **B** = back to the games.
+- Touch: **tap** = next program, **hold 1.5 s** = run it. Remote: joystick up/down = choose, **A** = run, **B** (bottom button) = back to the games, also while the app is connected.
 - When the program ends the list comes back. After 30 s with no input (and no app) the robot goes back to the games.
 - No programs saved yet: the screen says so; make one in the app first.
 
