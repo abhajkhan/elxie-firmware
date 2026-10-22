@@ -51,6 +51,8 @@ private:
     uint8_t rcCloseCount = 0;              // consecutive readings at or below RC_OBSTACLE_STOP_CM
     uint8_t rcClearCount = 0;              // consecutive clear readings (needed to lift the stop)
     bool rcBlocked = false;                // forward driving is blocked
+    unsigned long rcBackoffUntil = 0;      // automatic back-off running until this time (0 = none)
+    bool rcNeedRelease = false;            // after a stop: forward must be let go of before it is allowed again
 };
 
 #endif // ROBOT_CONTROLLER_H

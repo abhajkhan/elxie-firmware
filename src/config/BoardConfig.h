@@ -37,6 +37,9 @@ constexpr int DEFAULT_SPEED = 180;
 #define RC_OBSTACLE_STOP_CM 15
 #define RC_OBSTACLE_CLEAR_CM 20
 #define RC_OBSTACLE_CLEAR_READINGS 5 // clear readings in a row (> CLEAR_CM or no echo) to lift the stop
+// On each new obstacle the robot first backs up by itself, once (no rear sensor: keep it short)
+#define RC_OBSTACLE_BACKOFF_MS 300
+#define RC_OBSTACLE_BACKOFF_SPEED 150 // 0..255
 
 // ========================================
 // SONAR (HC-SR04) PINS

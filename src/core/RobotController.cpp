@@ -137,6 +137,8 @@ void RobotController::transitionToState(TopLevelState newState)
     rcReqLeft = rcReqRight = 0;
     rcCloseCount = 0;
     rcClearCount = 0;
+    rcBackoffUntil = 0;
+    rcNeedRelease = false;
     if (rcBlocked)
     {
         rcBlocked = false;
@@ -290,8 +292,8 @@ void RobotController::rcDrive(int16_t left, int16_t right)
 {
     rcReqLeft = left;
     rcReqRight = right;
-    if (!pMotors)
-        return;
+    if (!pMotors || rcBackoffUntil)
+        return; // during the automatic back-off the joystick is ignored
     if (rcBlocked)
     {
         const int16_t fwd = (left + right) / 2;
@@ -309,6 +311,12 @@ void RobotController::rcDrive(int16_t left, int16_t right)
 
 void RobotController::rcObstacleUpdate(const SensorSnapshot &sensors)
 {
+    if (rcBackoffUntil && (long)(millis() - rcBackoffUntil) >= 0)
+    { // back-off done: stop, then follow the joystick again (forward still blocked)
+        rcBackoffUntil = 0;
+        rcDrive(rcReqLeft, rcReqRight);
+    }
+
     const int d = sensors.frontDistanceCm; // -1 = no echo = nothing in range (clear)
     const bool close = d > 0 && d <= RC_OBSTACLE_STOP_CM;
     const bool clear = d <= 0 || d > RC_OBSTACLE_CLEAR_CM;
@@ -317,16 +325,32 @@ void RobotController::rcObstacleUpdate(const SensorSnapshot &sensors)
 
     // The HC-SR04 often misses single echoes (-1), so a stop is only lifted after several
     // clear readings in a row; a reading between STOP and CLEAR keeps it as it is.
+    // After a stop the child must also let go of forward once, so holding the stick does
+    // not make the robot bounce (back off, drive in, back off...).
+    if (rcNeedRelease && (rcReqLeft + rcReqRight) / 2 <= 0)
+        rcNeedRelease = false;
     bool blocked = rcBlocked;
     if (!rcBlocked && rcCloseCount >= 2)
         blocked = true;
-    else if (rcBlocked && rcClearCount >= RC_OBSTACLE_CLEAR_READINGS)
+    else if (rcBlocked && rcClearCount >= RC_OBSTACLE_CLEAR_READINGS && !rcNeedRelease)
         blocked = false;
     if (blocked == rcBlocked)
         return;
 
     rcBlocked = blocked;
-    Serial.printf("[RC] obstacle %s (%d cm)\n", blocked ? "ahead: forward stopped" : "cleared", d);
+    if (blocked)
+        rcNeedRelease = true;
+    Serial.printf("[RC] obstacle %s (%d cm)\n", blocked ? "ahead: backing off, forward stopped" : "cleared", d);
     EspNowManager::getInstance().sendFeedback(blocked ? 1 : 0); // remote: short buzz on 1
-    rcDrive(rcReqLeft, rcReqRight);                               // apply / lift the stop now
+    if (blocked && pMotors && RC_OBSTACLE_BACKOFF_MS > 0)
+    { // new obstacle: back up a little by itself, once
+        pMotors->driveBSigned(-RC_OBSTACLE_BACKOFF_SPEED);
+        pMotors->driveASigned(-RC_OBSTACLE_BACKOFF_SPEED);
+        currentState.leftMotorSpeed = currentState.rightMotorSpeed = -RC_OBSTACLE_BACKOFF_SPEED;
+        rcBackoffUntil = millis() + RC_OBSTACLE_BACKOFF_MS;
+        if (rcBackoffUntil == 0)
+            rcBackoffUntil = 1;
+        return;
+    }
+    rcDrive(rcReqLeft, rcReqRight); // apply / lift the stop now
 }
