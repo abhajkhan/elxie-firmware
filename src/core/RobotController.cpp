@@ -1,5 +1,6 @@
 #include "RobotController.h"
 #include "LocalMenu.h"
+#include "../communication/EspNowManager.h"
 #include <Arduino.h>
 
 void RobotController::begin(MotorController *motors, LedController *leds, DisplayController *display, BuzzerController *buzzer, LocalMenu *menu, GameManager *gameManager)
@@ -26,7 +27,7 @@ void RobotController::update(const SensorSnapshot &sensors, bool batteryLow)
         (void)batteryLow;
         break;
     case TopLevelState::RC:
-        // RC active
+        rcObstacleUpdate(sensors); // stop forward driving near an obstacle (ultrasonic only)
         break;
     case TopLevelState::GAME:
         if (pGameManager)
@@ -133,6 +134,13 @@ void RobotController::transitionToState(TopLevelState newState)
     }
 
     currentState.mode = newState;
+    rcReqLeft = rcReqRight = 0;
+    rcCloseCount = 0;
+    if (rcBlocked)
+    {
+        rcBlocked = false;
+        EspNowManager::getInstance().sendFeedback(0); // ALERT_OK
+    }
 
     if (newState == TopLevelState::IDLE)
     {
@@ -156,10 +164,7 @@ void RobotController::handleCommand(const RobotCommand &cmd)
     case CommandType::DRIVE_DIRECT:
         if (currentState.mode == TopLevelState::RC && pMotors)
         {
-            pMotors->driveBSigned(cmd.drive.leftSpeed);
-            pMotors->driveASigned(cmd.drive.rightSpeed);
-            currentState.leftMotorSpeed = cmd.drive.leftSpeed;
-            currentState.rightMotorSpeed = cmd.drive.rightSpeed;
+            rcDrive(cmd.drive.leftSpeed, cmd.drive.rightSpeed);
         }
         break;
 
@@ -244,12 +249,7 @@ void RobotController::handleInputEvent(const InputEvent &event)
         {
             int16_t left = event.data.joystick.y + event.data.joystick.x;
             int16_t right = event.data.joystick.y - event.data.joystick.x;
-
-            pMotors->driveBSigned(constrain(left, -255, 255));
-            pMotors->driveASigned(constrain(right, -255, 255));
-
-            currentState.leftMotorSpeed = left;
-            currentState.rightMotorSpeed = right;
+            rcDrive(constrain(left, -255, 255), constrain(right, -255, 255));
         }
     }
     else if (event.type == InputEventType::ACTION_SELECT)
@@ -280,4 +280,57 @@ void RobotController::handleInputEvent(const InputEvent &event)
             }
         }
     }
+}
+
+// ------------------------------------------------------------------ Free Ride collision stop
+// Front ultrasonic sensor only. When blocked, the forward part of the drive is removed:
+// reversing and turning on the spot still work, so a child can always back off or turn away.
+void RobotController::rcDrive(int16_t left, int16_t right)
+{
+    rcReqLeft = left;
+    rcReqRight = right;
+    if (!pMotors)
+        return;
+    if (rcBlocked)
+    {
+        const int16_t fwd = (left + right) / 2;
+        if (fwd > 0)
+        {
+            left -= fwd;
+            right -= fwd;
+        }
+    }
+    pMotors->driveBSigned(left);
+    pMotors->driveASigned(right);
+    currentState.leftMotorSpeed = left;
+    currentState.rightMotorSpeed = right;
+}
+
+void RobotController::rcObstacleUpdate(const SensorSnapshot &sensors)
+{
+    const int d = sensors.frontDistanceCm; // -1 = no echo = nothing in range (clear)
+    const bool close = d > 0 && d <= RC_OBSTACLE_STOP_CM;
+    const bool clear = d <= 0 || d > RC_OBSTACLE_CLEAR_CM;
+    if (close)
+    {
+        if (rcCloseCount < 255)
+            rcCloseCount++;
+    }
+    else
+    {
+        rcCloseCount = 0;
+    }
+
+    bool blocked = rcBlocked;
+    if (!rcBlocked && rcCloseCount >= 2)
+        blocked = true;
+    else if (rcBlocked && clear)
+        blocked = false;
+    if (blocked == rcBlocked)
+        return;
+
+    rcBlocked = blocked;
+    Serial.printf("[RC] obstacle %s (%d cm)\n", blocked ? "ahead: forward stopped" : "cleared", d);
+    EspNowManager::getInstance().sendFeedback(blocked ? 1 : 0); // remote: short buzz on 1
+    rcDrive(rcReqLeft, rcReqRight);                               // apply / lift the stop now
 }
