@@ -136,6 +136,7 @@ void RobotController::transitionToState(TopLevelState newState)
     currentState.mode = newState;
     rcReqLeft = rcReqRight = 0;
     rcCloseCount = 0;
+    rcClearCount = 0;
     if (rcBlocked)
     {
         rcBlocked = false;
@@ -311,20 +312,15 @@ void RobotController::rcObstacleUpdate(const SensorSnapshot &sensors)
     const int d = sensors.frontDistanceCm; // -1 = no echo = nothing in range (clear)
     const bool close = d > 0 && d <= RC_OBSTACLE_STOP_CM;
     const bool clear = d <= 0 || d > RC_OBSTACLE_CLEAR_CM;
-    if (close)
-    {
-        if (rcCloseCount < 255)
-            rcCloseCount++;
-    }
-    else
-    {
-        rcCloseCount = 0;
-    }
+    rcCloseCount = close ? (uint8_t)min(rcCloseCount + 1, 255) : 0;
+    rcClearCount = clear ? (uint8_t)min(rcClearCount + 1, 255) : 0;
 
+    // The HC-SR04 often misses single echoes (-1), so a stop is only lifted after several
+    // clear readings in a row; a reading between STOP and CLEAR keeps it as it is.
     bool blocked = rcBlocked;
     if (!rcBlocked && rcCloseCount >= 2)
         blocked = true;
-    else if (rcBlocked && clear)
+    else if (rcBlocked && rcClearCount >= RC_OBSTACLE_CLEAR_READINGS)
         blocked = false;
     if (blocked == rcBlocked)
         return;

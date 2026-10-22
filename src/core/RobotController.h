@@ -49,6 +49,7 @@ private:
     // Free Ride collision stop (front ultrasonic sensor)
     int16_t rcReqLeft = 0, rcReqRight = 0; // what the joystick asks for
     uint8_t rcCloseCount = 0;              // consecutive readings at or below RC_OBSTACLE_STOP_CM
+    uint8_t rcClearCount = 0;              // consecutive clear readings (needed to lift the stop)
     bool rcBlocked = false;                // forward driving is blocked
 };
 

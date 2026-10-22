@@ -32,9 +32,11 @@ constexpr int DEFAULT_SPEED = 180;
 
 // Free Ride (RC) collision stop, front ultrasonic sensor only (no IR):
 // at or below RC_OBSTACLE_STOP_CM (2 readings in a row) the robot will not drive forward;
-// reversing and turning on the spot still work. Released above RC_OBSTACLE_CLEAR_CM.
+// reversing and turning on the spot still work. Released after RC_OBSTACLE_CLEAR_READINGS
+// readings in a row above RC_OBSTACLE_CLEAR_CM (single "no echo" blips do not release it).
 #define RC_OBSTACLE_STOP_CM 15
 #define RC_OBSTACLE_CLEAR_CM 20
+#define RC_OBSTACLE_CLEAR_READINGS 5 // clear readings in a row (> CLEAR_CM or no echo) to lift the stop
 
 // ========================================
 // SONAR (HC-SR04) PINS
