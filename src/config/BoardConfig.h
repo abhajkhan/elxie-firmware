@@ -77,11 +77,12 @@ constexpr uint8_t BOTTOM_CH[4] = {10, 8, 12, 13}; // FL, FR, RL, RR
 // BATTERY SENSE PIN & THRESHOLDS
 // ========================================
 #define PIN_BATTERY 7
-// 2 x 18650 in series (8.4 V full, 6.6 V empty). Divider: pack+ --2k-- GPIO7 --1k-- GND,
-// so the pin sees 1/3 of the pack (2.8 V when full).
+// 2 x 18650 in series (8.4 V full, 6.6 V empty). Divider: pack+ --100k-- GPIO7 --47k-- GND,
+// so the pin sees pack x 47/147 (meter, Oct 2026: pack 7.72 V, GPIO7 2.47 V).
+// Percent: Li-ion curve on the per-cell voltage (pack / 2).
 #define BATT_CELLS 2
-#define BATT_R_TOP_OHM 2000.0f    // battery side
-#define BATT_R_BOTTOM_OHM 1000.0f // to GND
+#define BATT_R_TOP_OHM 100000.0f  // battery side
+#define BATT_R_BOTTOM_OHM 47000.0f // to GND
 #define BATT_CAL 1.000f           // multimeter / reading, if a robot reads off
 #define BATT_WARN_PCT 35
 #define BATT_CLEAR_PCT 40

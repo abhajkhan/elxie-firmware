@@ -32,7 +32,6 @@ static const uint8_t LEVEL_COUNT = 6;
 
 static const unsigned long HOME_MENU_TIMEOUT_MS = 15000; // back to the eyes after this without input
 static const uint8_t EYES_NEUTRAL = 0;                   // = elx::enums::face::NEUTRAL
-static const uint8_t EYES_SLEEPY = 5;                    // = elx::enums::face::SLEEPY (battery low)
 
 void LocalMenu::begin(DisplayController *display, RobotController *controller)
 {
@@ -123,7 +122,8 @@ void LocalMenu::update(bool batteryLow, bool remoteConnected, bool appConnected,
         }
         return;
     }
-    const uint8_t eyes = batteryLow ? EYES_SLEEPY : EYES_NEUTRAL;
+    (void)batteryLow; // the eyes stay normal: the low-battery beep and the app show the battery
+    const uint8_t eyes = EYES_NEUTRAL;
     if (eyes != shownEyes)
     {
         shownEyes = eyes;

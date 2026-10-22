@@ -34,7 +34,7 @@ A program keeps running if the app disconnects.
 
 ## Home screen (robot idle)
 
-- The robot shows **eyes** (the same eyes as Blocks): they blink and glance around by themselves, and look sleepy when the battery is low. They replace the old happy-face emoji.
+- The robot shows **eyes** (the same eyes as Blocks): they blink and glance around by themselves (always normal eyes; the low-battery beep and the app show the battery). They replace the old happy-face emoji.
 - **Remote menu**: the first joystick move or button press on the remote shows the menu. One item at a time, with a big icon: **joystick left / right** = next / previous, **stick press** = choose, **B** = back. 15 s without input (or B on the main menu) goes back to the eyes.
   - Main: **Games**, **Free Ride**, **My Programs**
   - Games: Colour Quest, Echo Memory, Reflex Dash, Driving Pro, Inverted Drive, then the level 1 to 6
