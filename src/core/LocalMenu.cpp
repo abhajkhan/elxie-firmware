@@ -74,7 +74,7 @@ void LocalMenu::setFaceOwner(bool on)
     dirty = true;
 }
 
-void LocalMenu::update(bool batteryLow, bool remoteConnected, bool appConnected, bool pairing)
+void LocalMenu::update(bool batteryLow, bool remoteConnected, bool appConnected, bool pairing, bool blush)
 {
     const TopLevelState mode = pRobotController ? pRobotController->getState().mode : TopLevelState::IDLE;
     if (pairing)
@@ -106,7 +106,7 @@ void LocalMenu::update(bool batteryLow, bool remoteConnected, bool appConnected,
         lastInputMs = now;
         dirty = true;
     }
-    if (menuVisible && (!remoteConnected || appConnected || now - lastInputMs > HOME_MENU_TIMEOUT_MS))
+    if (menuVisible && (blush || !remoteConnected || appConnected || now - lastInputMs > HOME_MENU_TIMEOUT_MS))
     {
         menuVisible = false;
         reset();
@@ -123,7 +123,7 @@ void LocalMenu::update(bool batteryLow, bool remoteConnected, bool appConnected,
         return;
     }
     (void)batteryLow; // the eyes stay normal: the low-battery beep and the app show the battery
-    const uint8_t eyes = EYES_NEUTRAL;
+    const uint8_t eyes = blush ? (uint8_t)FACE_BLUSH : EYES_NEUTRAL; // blushing while petted
     if (eyes != shownEyes)
     {
         shownEyes = eyes;

@@ -23,7 +23,7 @@ public:
     void begin(DisplayController *display, RobotController *controller);
     // Every loop (not in Blocks mode). Robot idle: eyes, or the icon menu once the remote is
     // used (back to the eyes after HOME_MENU_TIMEOUT_MS without input). Free Ride: its screen.
-    void update(bool batteryLow, bool remoteConnected, bool appConnected, bool pairing);
+    void update(bool batteryLow, bool remoteConnected, bool appConnected, bool pairing, bool blush = false);
     void handleInput(const InputEvent &event);
     void reset();
 

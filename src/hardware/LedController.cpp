@@ -8,6 +8,9 @@ void LedController::begin()
 
 void LedController::setStripColor(uint8_t r, uint8_t g, uint8_t b)
 {
+    lastR = r;
+    lastG = g;
+    lastB = b;
     for (int i = 0; i < NUM_STRIP_PIXELS; i++)
     {
         strip.setPixelColor(i, strip.Color(r, g, b));

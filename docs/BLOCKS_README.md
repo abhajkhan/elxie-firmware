@@ -35,6 +35,7 @@ A program keeps running if the app disconnects.
 ## Home screen (robot idle)
 
 - The robot shows **eyes** (the same eyes as Blocks): they blink and glance around by themselves (always normal eyes; the low-battery beep and the app show the battery). They replace the old happy-face emoji.
+- **Petting**: touch and hold the touch pad (more than 0.5 s) while the robot is idle: blushing face, a gentle pink/purple breathing wave on the LEDs, a chirp, a soft coo every ~2 s, and a little happy tune when you let go after 1 s or more. The lights then fade back to their previous colour. Quick taps are not petting (two quick taps open My Programs). The app sees `pet.active` / `pet.seconds` in telemetry for the trust level.
 - **Remote menu**: the first joystick move or button press on the remote shows the menu. One item at a time, with a big icon: **joystick left / right** = next / previous, **stick press** = choose, **B** = back. 15 s without input (or B on the main menu) goes back to the eyes.
   - Main: **Games**, **Free Ride**, **My Programs**
   - Games: Colour Quest, Echo Memory, Reflex Dash, Driving Pro, Inverted Drive, then the level 1 to 6

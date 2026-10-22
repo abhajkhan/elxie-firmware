@@ -29,12 +29,15 @@ class Face {
   void message(const char* big, const char* small);
   // Home screen (game firmware, robot idle): eyes that blink and glance around by themselves,
   // and a one-item-at-a-time icon menu (big icon, label, < > arrows, position dots).
-  void idleEyes(uint8_t expression);
+  void idleEyes(uint8_t expression);  // 0..7 as show(), or FACE_BLUSH (home screen petting)
   void carousel(const char* title, uint8_t icon, const char* label, uint8_t index, uint8_t count);
   uint8_t expression() const;
 };
 
 extern Face face;
+
+// Home-screen only expression (not a Blocks dropdown value): happy eyes + blushing cheeks
+#define FACE_BLUSH 8
 
 // Icons for Face::carousel()
 namespace homeicon {

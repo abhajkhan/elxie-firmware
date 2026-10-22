@@ -51,7 +51,7 @@ static FaceState g_state;
 void Face::show(uint8_t e) { LOCKED(g_state.mode = M_EYES; g_state.expr = e <= 7 ? e : 0; g_state.glance = false); }
 
 void Face::idleEyes(uint8_t e) {
-  LOCKED(g_state.mode = M_EYES; g_state.expr = e <= 7 ? e : 0; g_state.lookX = 0; g_state.lookY = 0;
+  LOCKED(g_state.mode = M_EYES; g_state.expr = e <= FACE_BLUSH ? e : 0; g_state.lookX = 0; g_state.lookY = 0;
          g_state.glance = true);
 }
 
@@ -230,6 +230,15 @@ static void drawEye(int cx, int cy, bool leftEye, uint8_t expr, float open) {
       break;
   }
   u8g2_SetDrawColor(&oled, 1);
+}
+
+// Blushing cheek under an eye centred at (cx, cy): a row of short diagonal strokes.
+static void drawBlush(int cx, int cy) {
+  for (int i = 0; i < 5; ++i) {
+    const int x = cx - 15 + i * 6;
+    u8g2_DrawLine(&oled, x, cy + 18, x + 5, cy + 11);
+    u8g2_DrawLine(&oled, x + 1, cy + 18, x + 6, cy + 11);
+  }
 }
 
 static void drawCentered(const char* s, int y) {
@@ -420,6 +429,14 @@ static void render(const FaceState& s, uint32_t now) {
         gx = gy = 0;
       }
       int dx = (s.lookX ? s.lookX : gx) * 14, dy = (s.lookY ? s.lookY : gy) * 9;
+      if (s.expr == FACE_BLUSH) {  // petting: happy eyes, still, with blushing cheeks
+        const uint8_t happy = elx::enums::face::HAPPY;
+        drawEye(40, 30, true, happy, open);
+        drawEye(88, 30, false, happy, open);
+        drawBlush(40, 30);
+        drawBlush(88, 30);
+        break;
+      }
       drawEye(40 + dx, 32 + dy, true, s.expr, open);
       drawEye(88 + dx, 32 + dy, false, s.expr, winking ? 0.12f : open);
       break;
