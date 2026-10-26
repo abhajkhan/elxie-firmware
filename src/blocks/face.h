@@ -10,6 +10,7 @@ class Face {
  public:
   void begin(Adafruit_SSD1306* display);  // display = DisplayController's (nullptr: no OLED)
   void setActive(bool on);                // true while the block engine owns the screen
+  bool isActive() const;                  // the face engine is drawing on the OLED
   void show(uint8_t expression);
   void look(uint8_t dir);
   void blink();

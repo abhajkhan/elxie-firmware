@@ -571,3 +571,4 @@ void Face::begin(Adafruit_SSD1306* display) {
 }
 
 void Face::setActive(bool on) { s_active = on; }
+bool Face::isActive() const { return s_active; }

@@ -32,6 +32,7 @@ static Settings g_settings;
 static bool g_idleDirty = true;
 static uint32_t g_menuAt = 0;  // when to show the idle screen again after a program
 static uint32_t g_abHeldMs = 0;
+static uint32_t g_bHeldMs = 0;  // remote B held alone while a program runs
 static uint32_t g_magCalEnd = 0;
 
 // ---- "My Programs" list on the robot (touch: tap = next, hold = run; remote: joystick + A, B = leave)
@@ -190,11 +191,17 @@ void tick(uint32_t dtMs) {
   bool ab = remote.button(REMOTE_BTN_A) && remote.button(REMOTE_BTN_B);
   g_abHeldMs = ab ? g_abHeldMs + dtMs : 0;
   uint32_t held = s.touchHeldMs[0];
+  const bool bAlone = remote.button(REMOTE_BTN_B) && !remote.button(REMOTE_BTN_A);
+  g_bHeldMs = (g_vm.running() && bAlone) ? g_bHeldMs + dtMs : 0;
   if (!s.touch[0]) g_launchHold = false;
-  if (g_vm.running() && (g_abHeldMs >= REMOTE_STOP_HOLD_MS || (held >= TOUCH_STOP_MS && !g_launchHold))) {
+  if (g_vm.running() && (g_abHeldMs >= REMOTE_STOP_HOLD_MS || g_bHeldMs >= REMOTE_B_STOP_MS ||
+                         (held >= TOUCH_STOP_MS && !g_launchHold))) {
+    Serial.printf("[Blocks] program stopped (%s)\n", g_bHeldMs >= REMOTE_B_STOP_MS ? "remote B held" : "e-stop");
+    g_bHeldMs = 0;
     stopProgram();
     face.message("Stopped", "");
     sound.playEffect(sfx::BEEP);
+    g_lastA = g_lastB = true;  // the held button must be released before it counts in the list
   }
 
   // ---- Lift / tilt safety stop: tilted or upside down WHILE the wheels drive.
@@ -258,6 +265,7 @@ void tick(uint32_t dtMs) {
     const bool b = remote.button(REMOTE_BTN_B);
     if (a && !g_lastA && !b) launch = true;
     if (b && !g_lastB && !a) {
+      Serial.println("[Blocks] remote B: back to the games");
       g_leaveRequest = true;
       g_lastInputMs = now;
     }

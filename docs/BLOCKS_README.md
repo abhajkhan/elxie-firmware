@@ -53,7 +53,7 @@ A program keeps running if the app disconnects.
 
 | Stop | How |
 |---|---|
-| E-stop | Hold remote A + B, or hold the touch pad 2 s (a press that started the program does not count until released) |
+| E-stop | Hold remote **B for 5 s**, or A + B together for about 1 s, or the touch pad for 2 s (a press that started the program does not count until released). Short B presses still go to the program. |
 | Lift / tilt stop | Tilted more than 60 degrees or upside down **while the wheels are driving**, for 0.3 s: motors and program stop, the face shows "Put me down". Uses the motion sensor, not the IR sensors (sunlight). Tilting a robot whose wheels are still does not stop anything, so "tilt" blocks keep working. Settings: `LIFT_STOP_DEG`, `LIFT_STOP_MS` in `blocks_config.h`. |
 
 ## What was added or changed

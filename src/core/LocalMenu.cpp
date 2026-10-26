@@ -66,6 +66,10 @@ void LocalMenu::wake()
 
 void LocalMenu::setFaceOwner(bool on)
 {
+    // Blocks mode switches the face on and off by itself while this code is not running,
+    // so check the real state (a stale "owned" left the screen frozen on the Blocks list).
+    if (faceOwned && !face.isActive())
+        faceOwned = false;
     if (on == faceOwned)
         return;
     face.setActive(on);

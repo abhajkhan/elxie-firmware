@@ -143,6 +143,7 @@
 #define REMOTE_BTN_B       1
 #define REMOTE_BTN_STICK   2       // joystick push
 #define REMOTE_STOP_HOLD_MS 800    // hold A + B together this long = stop program (always active)
+#define REMOTE_B_STOP_MS   5000    // hold B alone this long = stop the running program (short B presses go to the program)
 
 // ---------------------------------------------------------------- Safety
 #define CLIFF_GUARD        0       // 1 = block driving toward a detected table edge. Off: it also blocked
