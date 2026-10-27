@@ -49,15 +49,21 @@ const uint8_t CH_Y = 5;
 const uint8_t CH_BATT = 4; // battery divider (100k / 100k) on mux channel 4
 
 // ---- Battery (one 18650 cell) ----
-// cell+ --100k-- mux ch4 --100k-- GND, mux COM -> D1 Mini A0. The D1 Mini has its own
-// 220k/100k divider on A0 (A0 pin 3.2 V = raw 1023), which also LOADS our divider with
-// 320k. So the pin sees Vbat * (100k||320k) / (100k + 100k||320k) = 0.432 * Vbat.
+// cell+ --100k-- mux ch4 --100k-- GND, mux COM -> D1 Mini A0 (A0 pin 3.2 V = raw 1023).
+// Measured on the Elxie remote (Oct 2026): no loading of the divider by A0 is visible
+// (cell 3.92 V on the meter, firmware 4.03 V with plain x2), so A0_LOAD = 0, and
+// BATT_CAL = 3.92 / 4.03 corrects the ESP8266 ADC's gain.
 const float BATT_R_TOP = 100000.0f;    // battery side
 const float BATT_R_BOTTOM = 100000.0f; // to GND
-const float A0_LOAD = 320000.0f;       // D1 Mini's 220k + 100k from A0 to GND
+const float A0_LOAD = 0.0f;            // 0 = no loading (measured); 320000 if A0 loads the divider
 const float A0_FULL_SCALE_V = 3.2f;    // A0 pin volts at raw 1023
-const float BATT_CAL = 1.000f;         // multimeter / reading, if a unit reads off
+const float BATT_CAL = 0.972f;         // multimeter / reading (3.92 V meter / 4.03 V reading, Oct 2026)
 const unsigned long BATT_REPORT_MS = 2000;
+// Percent: straight line on the CELL voltage, set from measurements (Oct 2026):
+//   cell 4.10 V (2.05 V at mux ch4, unloaded) = 100 %,  cell 3.65 V (1.825 V) = 0 %
+const uint16_t BATT_FULL_MV = 4100;
+const uint16_t BATT_EMPTY_MV = 3650;
+uint8_t batteryPercent(uint16_t cellMv) { return elxLinearPercent(cellMv, BATT_FULL_MV, BATT_EMPTY_MV, 0); }
 
 // ---- Direct digital inputs ----
 const uint8_t PIN_SW = D3;   // Joystick button
@@ -216,6 +222,7 @@ bool prevBtn1 = false, prevBtn2 = false, prevSw = false;
 
 // ---- battery: millivolts of the cell (averaged, smoothed) ----
 float battMvSmooth = 0;
+uint16_t lastBattRaw = 0; // last averaged ADC reading of mux ch4 (for checking the divider maths)
 uint16_t readBatteryMv()
 {
   readMux(CH_BATT); // settle after switching the mux
@@ -223,7 +230,8 @@ uint16_t readBatteryMv()
   for (int i = 0; i < 8; ++i)
     sum += readMux(CH_BATT);
   const float vPin = (sum / 8.0f) * A0_FULL_SCALE_V / 1023.0f;
-  const float rLow = BATT_R_BOTTOM * A0_LOAD / (BATT_R_BOTTOM + A0_LOAD);
+  const float rLow = A0_LOAD > 0 ? BATT_R_BOTTOM * A0_LOAD / (BATT_R_BOTTOM + A0_LOAD) : BATT_R_BOTTOM;
+  lastBattRaw = (uint16_t)(sum / 8);
   const float vBat = vPin * (BATT_R_TOP + rLow) / rLow * BATT_CAL;
   const float mv = vBat * 1000.0f;
   battMvSmooth = battMvSmooth <= 0 ? mv : battMvSmooth * 0.7f + mv * 0.3f;
@@ -237,13 +245,13 @@ void reportBattery()
   memcpy(st.magic, "ELXS", 4);
   st.version = ELX_PAIR_VERSION;
   st.battMv = readBatteryMv();
-  st.battPct = elxLiIonPercent(st.battMv);
+  st.battPct = batteryPercent(st.battMv);
   esp_now_send(MAINBOT_MAC, (uint8_t *)&st, sizeof st);
   static unsigned long lastLog = 0;
   if (millis() - lastLog > 30000)
   {
     lastLog = millis();
-    Serial.printf("BATTERY %u mV %u%%\n", st.battMv, st.battPct);
+    Serial.printf("BATTERY %u mV %u%% (raw %u)\n", st.battMv, st.battPct, lastBattRaw);
   }
 }
 
@@ -345,7 +353,7 @@ void setup()
 
   {
     const uint16_t mv = readBatteryMv();
-    Serial.printf("BATTERY %u mV %u%%\n", mv, elxLiIonPercent(mv));
+    Serial.printf("BATTERY %u mV %u%% (raw %u)\n", mv, batteryPercent(mv), lastBattRaw);
   }
 
   // boot buzz: one short = ready, two long = not paired

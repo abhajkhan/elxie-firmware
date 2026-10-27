@@ -285,23 +285,16 @@ function battFactor() {
   const cal = parseFloat(localStorage.getItem('elxRemoteBattCal') || '');
   if (cal > 0) return { f: cal, how: 'multimeter calibration' };
   const top = +$('rTop').value || 0, bot = +$('rBot').value || 1;
-  // the D1 Mini's own 220k + 100k on A0 (320k) loads the bottom resistor (same maths as the firmware)
-  const low = bot * 320 / (bot + 320);
-  return { f: 3.2 / 1023 * (top + low) / low, how: top ? `divider ${top} k / ${bot} k (with the D1 Mini's 320 k load)` : 'no divider entered (voltage at A0 only)' };
+  // plain divider x 0.972 ADC gain correction (same maths as the firmware, measured Oct 2026)
+  return { f: 3.2 / 1023 * (top + bot) / bot * 0.972, how: top ? `divider ${top} k / ${bot} k, BATT_CAL 0.972` : 'no divider entered (voltage at A0 only)' };
 }
-// One Li-ion cell: % from volts (same table as elxLiIonPercent in ElxiePairingProtocol.h)
+// Remote cell: straight line, 4.10 V = 100 %, 3.65 V = 0 % (same as batteryPercent() in REMOTE_espnow.ino)
 function liIonPct(v) {
-  const mv = [3300, 3500, 3600, 3680, 3730, 3770, 3800, 3830, 3870, 3920, 3980, 4060, 4200];
-  const pc = [0, 3, 6, 10, 15, 25, 35, 45, 55, 65, 75, 87, 100];
-  const m = v * 1000;
-  if (m <= mv[0]) return 0;
-  if (m >= mv[mv.length - 1]) return 100;
-  for (let i = 1; i < mv.length; i++) if (m <= mv[i]) return Math.round(pc[i - 1] + (pc[i] - pc[i - 1]) * (m - mv[i - 1]) / (mv[i] - mv[i - 1]));
-  return 100;
+  return Math.max(0, Math.min(100, Math.round((v - 3.65) / (4.10 - 3.65) * 100)));
 }
 function battFactorNoCal() {
-  const top = +$('rTop').value || 0, bot = +$('rBot').value || 1, low = bot * 320 / (bot + 320);
-  return 3.2 / 1023 * (top + low) / low;
+  const top = +$('rTop').value || 0, bot = +$('rBot').value || 1;
+  return 3.2 / 1023 * (top + bot) / bot;  // without BATT_CAL: the Calibrate result IS the firmware's BATT_CAL
 }
 let lastBatRaw = 0;
 function showBattery(raw) {

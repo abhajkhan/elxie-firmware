@@ -10,6 +10,7 @@ class Face {
  public:
   void begin(Adafruit_SSD1306* display);  // display = DisplayController's (nullptr: no OLED)
   void setActive(bool on);                // true while the block engine owns the screen
+  bool isActive() const;                  // the face engine is drawing on the OLED
   void show(uint8_t expression);
   void look(uint8_t dir);
   void blink();
@@ -27,7 +28,20 @@ class Face {
   // System screens (launcher / status). Program blocks override them.
   void menu(const char* title, const char* const* items, uint8_t count, uint8_t selected, const char* footer);
   void message(const char* big, const char* small);
+  // Home screen (game firmware, robot idle): eyes that blink and glance around by themselves,
+  // and a one-item-at-a-time icon menu (big icon, label, < > arrows, position dots).
+  void idleEyes(uint8_t expression);  // 0..7 as show(), or FACE_BLUSH (home screen petting)
+  void carousel(const char* title, uint8_t icon, const char* label, uint8_t index, uint8_t count);
   uint8_t expression() const;
 };
 
 extern Face face;
+
+// Home-screen only expression (not a Blocks dropdown value): happy eyes + blushing cheeks
+#define FACE_BLUSH 8
+
+// Icons for Face::carousel()
+namespace homeicon {
+enum : uint8_t { GAMES = 1, FREE_RIDE, MY_PROGRAMS, COLOUR_QUEST, ECHO_MEMORY, REFLEX_DASH, DRIVING_PRO, INVERTED_DRIVE,
+                 LEVEL = 20 };  // LEVEL: the label's text is drawn big (the level number)
+}

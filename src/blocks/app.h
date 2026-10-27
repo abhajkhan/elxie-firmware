@@ -1,4 +1,4 @@
-// Program control, idle screen and safety stops (Home firmware: no on-robot launcher).
+// Program control, the "My Programs" list on the robot, and safety stops.
 #pragma once
 #include <stdint.h>
 
@@ -18,6 +18,8 @@ uint8_t autorunSlot();
 bool setAutorun(uint8_t slot);  // 0xFF = none
 void slotsChanged();            // after upload / delete
 void showIdle();                // redraw the idle screen (entering Blocks mode)
+uint32_t lastInputMs();          // last touch / remote input in the "My Programs" list
+bool takeLeaveRequest();         // remote B pressed in the list (leave Blocks mode)
 
 void startIrCalibration();
 bool finishIrCalibration();

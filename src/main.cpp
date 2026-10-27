@@ -7,6 +7,7 @@
 #include "core/RobotController.h"
 #include "core/ControllerManager.h"
 #include "core/LocalMenu.h"
+#include "core/PetMode.h"
 #include "core/RemotePairing.h"
 #include "games/GameManager.h"
 
@@ -36,6 +37,7 @@ static BatteryManager batteryManager;
 static RobotController robotController;
 static ControllerManager controllerManager;
 static LocalMenu localMenu;
+static PetMode petMode;
 static GameManager gameManager;
 
 // Communication Instances
@@ -62,6 +64,7 @@ void setup()
     // Initialize Core Logic Modules
     gameManager.begin(&displayController, &ledController, &buzzerController, &bleManager, &motorController);
     localMenu.begin(&displayController, &robotController);
+    petMode.begin(&ledController, &buzzerController);
     robotController.begin(&motorController, &ledController, &displayController, &buzzerController, &localMenu, &gameManager);
     controllerManager.begin(&robotController);
 
@@ -98,10 +101,13 @@ void loop()
     bool espNowConnected = espNowManager.isConnected();
     controllerManager.update(bleConnected, espNowConnected);
 
-    // 4. Update Local OLED Menu if Remote owns control
-    if (!bleConnected && espNowConnected && !blocksMode && !pairingMode)
+    // 4. Petting at home (hold the touch pad), then the home screen: idle eyes (blushing
+    //    while petted), or the icon menu once the remote is used; Free Ride screen
+    const bool atHome = !blocksMode && !pairingMode && robotController.getState().mode == TopLevelState::IDLE;
+    petMode.update(atHome, atHome && sensorManager.getSnapshot().touchActive);
+    if (!blocksMode)
     {
-        localMenu.update(batteryManager.isLow());
+        localMenu.update(batteryManager.isLow(), espNowConnected, bleConnected, pairingMode, petMode.blushing());
     }
 
     // 5. Process incoming BLE messages

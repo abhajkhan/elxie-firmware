@@ -1,5 +1,6 @@
 #include "RobotController.h"
 #include "LocalMenu.h"
+#include "../communication/EspNowManager.h"
 #include <Arduino.h>
 
 void RobotController::begin(MotorController *motors, LedController *leds, DisplayController *display, BuzzerController *buzzer, LocalMenu *menu, GameManager *gameManager)
@@ -22,10 +23,11 @@ void RobotController::update(const SensorSnapshot &sensors, bool batteryLow)
     switch (currentState.mode)
     {
     case TopLevelState::IDLE:
-        pDisplay->updateIdleDisplay(batteryLow);
+        // Home screen (eyes / icon menu) is drawn by LocalMenu through the face engine.
+        (void)batteryLow;
         break;
     case TopLevelState::RC:
-        // RC active
+        rcObstacleUpdate(sensors); // stop forward driving near an obstacle (ultrasonic only)
         break;
     case TopLevelState::GAME:
         if (pGameManager)
@@ -132,6 +134,16 @@ void RobotController::transitionToState(TopLevelState newState)
     }
 
     currentState.mode = newState;
+    rcReqLeft = rcReqRight = 0;
+    rcCloseCount = 0;
+    rcClearCount = 0;
+    rcBackoffUntil = 0;
+    rcNeedRelease = false;
+    if (rcBlocked)
+    {
+        rcBlocked = false;
+        EspNowManager::getInstance().sendFeedback(0); // ALERT_OK
+    }
 
     if (newState == TopLevelState::IDLE)
     {
@@ -155,10 +167,7 @@ void RobotController::handleCommand(const RobotCommand &cmd)
     case CommandType::DRIVE_DIRECT:
         if (currentState.mode == TopLevelState::RC && pMotors)
         {
-            pMotors->driveBSigned(cmd.drive.leftSpeed);
-            pMotors->driveASigned(cmd.drive.rightSpeed);
-            currentState.leftMotorSpeed = cmd.drive.leftSpeed;
-            currentState.rightMotorSpeed = cmd.drive.rightSpeed;
+            rcDrive(cmd.drive.leftSpeed, cmd.drive.rightSpeed);
         }
         break;
 
@@ -243,12 +252,7 @@ void RobotController::handleInputEvent(const InputEvent &event)
         {
             int16_t left = event.data.joystick.y + event.data.joystick.x;
             int16_t right = event.data.joystick.y - event.data.joystick.x;
-
-            pMotors->driveBSigned(constrain(left, -255, 255));
-            pMotors->driveASigned(constrain(right, -255, 255));
-
-            currentState.leftMotorSpeed = left;
-            currentState.rightMotorSpeed = right;
+            rcDrive(constrain(left, -255, 255), constrain(right, -255, 255));
         }
     }
     else if (event.type == InputEventType::ACTION_SELECT)
@@ -279,4 +283,74 @@ void RobotController::handleInputEvent(const InputEvent &event)
             }
         }
     }
+}
+
+// ------------------------------------------------------------------ Free Ride collision stop
+// Front ultrasonic sensor only. When blocked, the forward part of the drive is removed:
+// reversing and turning on the spot still work, so a child can always back off or turn away.
+void RobotController::rcDrive(int16_t left, int16_t right)
+{
+    rcReqLeft = left;
+    rcReqRight = right;
+    if (!pMotors || rcBackoffUntil)
+        return; // during the automatic back-off the joystick is ignored
+    if (rcBlocked)
+    {
+        const int16_t fwd = (left + right) / 2;
+        if (fwd > 0)
+        {
+            left -= fwd;
+            right -= fwd;
+        }
+    }
+    pMotors->driveBSigned(left);
+    pMotors->driveASigned(right);
+    currentState.leftMotorSpeed = left;
+    currentState.rightMotorSpeed = right;
+}
+
+void RobotController::rcObstacleUpdate(const SensorSnapshot &sensors)
+{
+    if (rcBackoffUntil && (long)(millis() - rcBackoffUntil) >= 0)
+    { // back-off done: stop, then follow the joystick again (forward still blocked)
+        rcBackoffUntil = 0;
+        rcDrive(rcReqLeft, rcReqRight);
+    }
+
+    const int d = sensors.frontDistanceCm; // -1 = no echo = nothing in range (clear)
+    const bool close = d > 0 && d <= RC_OBSTACLE_STOP_CM;
+    const bool clear = d <= 0 || d > RC_OBSTACLE_CLEAR_CM;
+    rcCloseCount = close ? (uint8_t)min(rcCloseCount + 1, 255) : 0;
+    rcClearCount = clear ? (uint8_t)min(rcClearCount + 1, 255) : 0;
+
+    // The HC-SR04 often misses single echoes (-1), so a stop is only lifted after several
+    // clear readings in a row; a reading between STOP and CLEAR keeps it as it is.
+    // After a stop the child must also let go of forward once, so holding the stick does
+    // not make the robot bounce (back off, drive in, back off...).
+    if (rcNeedRelease && (rcReqLeft + rcReqRight) / 2 <= 0)
+        rcNeedRelease = false;
+    bool blocked = rcBlocked;
+    if (!rcBlocked && rcCloseCount >= 2)
+        blocked = true;
+    else if (rcBlocked && rcClearCount >= RC_OBSTACLE_CLEAR_READINGS && !rcNeedRelease)
+        blocked = false;
+    if (blocked == rcBlocked)
+        return;
+
+    rcBlocked = blocked;
+    if (blocked)
+        rcNeedRelease = true;
+    Serial.printf("[RC] obstacle %s (%d cm)\n", blocked ? "ahead: backing off, forward stopped" : "cleared", d);
+    EspNowManager::getInstance().sendFeedback(blocked ? 1 : 0); // remote: short buzz on 1
+    if (blocked && pMotors && RC_OBSTACLE_BACKOFF_MS > 0)
+    { // new obstacle: back up a little by itself, once
+        pMotors->driveBSigned(-RC_OBSTACLE_BACKOFF_SPEED);
+        pMotors->driveASigned(-RC_OBSTACLE_BACKOFF_SPEED);
+        currentState.leftMotorSpeed = currentState.rightMotorSpeed = -RC_OBSTACLE_BACKOFF_SPEED;
+        rcBackoffUntil = millis() + RC_OBSTACLE_BACKOFF_MS;
+        if (rcBackoffUntil == 0)
+            rcBackoffUntil = 1;
+        return;
+    }
+    rcDrive(rcReqLeft, rcReqRight); // apply / lift the stop now
 }

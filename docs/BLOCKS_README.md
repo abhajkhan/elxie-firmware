@@ -28,8 +28,33 @@ A healthy boot log contains these lines:
 | A block program is running | The remote's joystick and buttons go to the program, not to RC or the local menu. Holding A + B on the remote, or holding touch for 2 s, stops the program. |
 | The app starts RC or a game | Blocks mode ends and the game code takes the robot back. |
 | The app disconnects and no program is running | After 3 s the robot returns to IDLE: the idle face and the remote menu. |
+| **Double tap** on the touch pad while the robot is idle (no game, no app needed) | Opens **My Programs**: the programs saved on the robot. |
 
 A program keeps running if the app disconnects.
+
+## Home screen (robot idle)
+
+- The robot shows **eyes** (the same eyes as Blocks): they blink and glance around by themselves (always normal eyes; the low-battery beep and the app show the battery). They replace the old happy-face emoji.
+- **Petting**: touch and hold the touch pad (more than 0.5 s) while the robot is idle: blushing face, a gentle pink/purple breathing wave on the LEDs, a chirp, a soft coo every ~2 s, and a little happy tune when you let go after 1 s or more. The lights then fade back to their previous colour. Quick taps are not petting (two quick taps open My Programs). The app sees `pet.active` / `pet.seconds` in telemetry for the trust level.
+- **Remote menu**: the first joystick move or button press on the remote shows the menu. One item at a time, with a big icon: **joystick left / right** = next / previous, **stick press** = choose, **B** = back. 15 s without input (or B on the main menu) goes back to the eyes.
+  - Main: **Games**, **Free Ride**, **My Programs**
+  - Games: Colour Quest, Echo Memory, Reflex Dash, Driving Pro, Inverted Drive, then the level 1 to 6
+- **Free Ride collision stop**: the front ultrasonic sensor (only; no IR) stops forward driving at 15 cm or closer (2 readings in a row): the robot first backs up by itself for 0.3 s (once per obstacle, joystick ignored meanwhile), then forward stays blocked; reversing and turning on the spot still work, and the remote gives one short buzz. Driving forward is allowed again after 5 clear readings in a row above 20 cm (single missed echoes do not lift the stop) and once forward on the stick has been let go, so holding the stick never makes it bounce. Works for the remote and for app RC. Settings: `RC_OBSTACLE_STOP_CM`, `RC_OBSTACLE_CLEAR_CM`, `RC_OBSTACLE_BACKOFF_MS`, `RC_OBSTACLE_BACKOFF_SPEED` in `BoardConfig.h`. The sensor only looks forward (about +/-15 degrees).
+- Only one part of the firmware draws on the screen at a time (the face engine at home, the games during a game or Free Ride), so the screen no longer flickers between the menu and the face.
+
+## My Programs (on the robot, without the app)
+
+- Open: double tap the touch pad while the robot is idle, or choose **My Programs** in the remote menu.
+- Touch: **tap** = next program, **hold 1.5 s** = run it. Remote: joystick up/down = choose, **A** = run, **B** (bottom button) = back to the games, also while the app is connected.
+- When the program ends the list comes back. After 30 s with no input (and no app) the robot goes back to the games.
+- No programs saved yet: the screen says so; make one in the app first.
+
+## Safety stops (Blocks)
+
+| Stop | How |
+|---|---|
+| E-stop | Hold remote **B for 5 s**, or A + B together for about 1 s, or the touch pad for 2 s (a press that started the program does not count until released). Short B presses still go to the program. |
+| Lift / tilt stop | Tilted more than 60 degrees or upside down **while the wheels are driving**, for 0.3 s: motors and program stop, the face shows "Put me down". Uses the motion sensor, not the IR sensors (sunlight). Tilting a robot whose wheels are still does not stop anything, so "tilt" blocks keep working. Settings: `LIFT_STOP_DEG`, `LIFT_STOP_MS` in `blocks_config.h`. |
 
 ## What was added or changed
 

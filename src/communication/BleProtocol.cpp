@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include "../hardware/BatteryLevel.h"
+#include "../core/PetMode.h"
 #include "EspNowManager.h"
 #include <string.h>
 
@@ -326,6 +327,11 @@ String BleProtocol::serializeTelemetry(const SensorSnapshot &snapshot, InputSour
 
     JsonObject touch = doc["touch"].to<JsonObject>();
     touch["event"] = snapshot.touchActive ? "touched" : "none";
+
+    // Petting at home (touch pad held > 0.5 s, robot idle): for the app's trust level.
+    JsonObject petObj = doc["pet"].to<JsonObject>();
+    petObj["active"] = pet::active();
+    petObj["seconds"] = pet::seconds();
 
     JsonObject ctrl = doc["controller"].to<JsonObject>();
     if (activeOwner == InputSource::BLE)

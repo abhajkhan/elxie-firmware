@@ -34,6 +34,8 @@ public:
 private:
     void transitionToState(TopLevelState newState);
     void stopAllMotion();
+    void rcDrive(int16_t left, int16_t right); // Free Ride: drive with the collision stop applied
+    void rcObstacleUpdate(const SensorSnapshot &sensors);
 
     MotorController *pMotors = nullptr;
     LedController *pLeds = nullptr;
@@ -43,6 +45,14 @@ private:
     GameManager *pGameManager = nullptr;
 
     RobotState currentState;
+
+    // Free Ride collision stop (front ultrasonic sensor)
+    int16_t rcReqLeft = 0, rcReqRight = 0; // what the joystick asks for
+    uint8_t rcCloseCount = 0;              // consecutive readings at or below RC_OBSTACLE_STOP_CM
+    uint8_t rcClearCount = 0;              // consecutive clear readings (needed to lift the stop)
+    bool rcBlocked = false;                // forward driving is blocked
+    unsigned long rcBackoffUntil = 0;      // automatic back-off running until this time (0 = none)
+    bool rcNeedRelease = false;            // after a stop: forward must be let go of before it is allowed again
 };
 
 #endif // ROBOT_CONTROLLER_H

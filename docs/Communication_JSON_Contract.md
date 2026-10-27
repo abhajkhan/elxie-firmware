@@ -1002,6 +1002,10 @@ ESP32 → Mobile:
     },
     "touch": {
       "event": "none"
+    },
+    "pet": {
+      "active": false,
+      "seconds": 0
     }
   }
 }
@@ -1018,6 +1022,15 @@ ESP32 → Mobile:
 
 The app should show "–" (not 0 %) for the remote when `battery.remote` is missing.
 The robot sounds its own low-battery beep below 35 % (`BATT_WARN_PCT`).
+
+### Pet fields
+
+| Field | Meaning |
+|---|---|
+| `pet.active` | `true` while the child is petting the robot at home: touch pad held more than 0.5 s while the robot is idle (not in a game, Free Ride, Blocks or pairing). Quick taps are not petting. |
+| `pet.seconds` | How long the current petting has lasted, in seconds (0 when not petting) |
+
+`touch.event` is unchanged ("touched" whenever the pad is touched). Use `pet` for the trust level.
 
 ### Telemetry rules
 

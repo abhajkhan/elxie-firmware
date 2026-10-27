@@ -67,3 +67,11 @@ static inline uint8_t elxLiIonPercent(uint16_t cellMv) {
   }
   return 100;
 }
+
+// Straight-line percent between two calibrated points (mV at 100 %, mV at lowPct),
+// continued with the same slope below lowPct, clamped to 0..100.
+static inline uint8_t elxLinearPercent(uint16_t mv, uint16_t fullMv, uint16_t lowMv, uint8_t lowPct) {
+  if (fullMv <= lowMv) return 0;
+  const int32_t p = (int32_t)lowPct + ((int32_t)mv - lowMv) * (100 - lowPct) / ((int32_t)fullMv - lowMv);
+  return (uint8_t)(p < 0 ? 0 : (p > 100 ? 100 : p));
+}
